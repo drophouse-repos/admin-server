@@ -1,0 +1,17 @@
+# flyctl launch added from .gitignore
+# Byte-compiled / optimized / DLL files
+**\__pycache__
+
+# Environment variables
+**\.env
+**\env
+**\murray
+# SQLite database file used for testing or local development
+**\*.db
+
+# Others
+**\*.py[cod]
+**\*$py.class
+**\*.so
+**\*.log
+fly.toml

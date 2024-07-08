@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "drophouse-v2",
+  "private_key_id": "72e71a6008d884b3f90c94b7d7cc4266ce33f485",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC22hB7ANe6CXn1\nfu7L+fS57DcKt6ABqL5Phy0IS5QtNRY3bMeXd6U6C8vStx5e+6SpsW25F+J8PqoW\nzdFsbbZ5a1d9uHrVB/fOUQpQlsRSdipMHij+xNSYsHNHIsL0H8AI8kfWEhxJ+LHu\nkxiS1GRFSrDdbTP+htKn1aBgn/leMIowbRBpQcFXNiCD8AK1X/Jm0udYvfaN8X6c\nwlzEY6uPryKwzz0HmGzoct4HXfRcm8kuve4ICdx7AWQMOaEwx98S+Ur6Cy+xxUXB\naSVW+EkbmAVoJCYH/OoOm/1RzhMfSEtKofk2PeQGel2iBMzNstDsvqZ3Vk1JGvR0\nOKApY56VAgMBAAECggEALEZ/KRmaIuz6gAxdTDzZGk/tQAYYk25FrsIfkFukpJGv\nMHqBldadxoFmuD4o93zdcU2KMQBskgMmcmEh7axfO+VXCRUrgPvt8CJFaiAnp4P/\nV/ERoicNB2/qafYr2Kr7d+8an+ZAvVSf2RH7KEqPgQvF6cfwiBgjWAptTBhQbJLQ\n4atPs4CC5uJqPHazIsUE1c8DI3b9mfnRt/lKBKceJwh+JET9BNfQVlwdmfz6MbFj\nk5MmrOInFe0P7XlGEmRUg2iN7Tiz0hBxFpnoLjIIxouUKzEYAGEQMgafcvnNhTVr\nZgQ+Zqzfil6HV8HPKsbIycbjJKV03q8r3m2MgVQDoQKBgQDyKmFYkq1xfh3PDphX\nB30+tZtw4i8juy2QkHiTYn8wrYe/T3JZ1H1AJyWDI/f2eBexoP7gTCmaVNMa0Dqj\nQd1x+8Ei7jYIt+MGTtmNANl2CRrSmyQ8uCCy+7mBLaYNiovvc/LWNBKxmC0XXohA\nCP5dxfW4gSTtdG4jKrlzo5ZQfQKBgQDBTDu8wvFzuCoPwR2qhrsB2t9E/pTfOrrW\nGF77/VrsxgJUemXR7MXhsJDeUI4LdwznYkZVT7aS1y37X05SGYe7SYCA34H1W4sN\nLeMAXtxL2AEp2eatfI+ovS2KMuGAHr8n6yU3g37GGZt4p9d81ikboDuAOQCVJSAG\nIEnoKCm5+QKBgEagyad1kBRrvfHnxdKMIqEpgl5X+XuoWc+x8xi5P3NJCTBo0WcV\nrDoLsMsgsG8382EhHXT5gaC7YJ6PYKrAyP83d8riQuwkBZiPYq/XMZVVbndCPD1h\nTlglRqNAVw/X+pwp6wdCRLl7MpuAPKjAdr+Ovu3C7Kw8quqiyVfKvEpZAoGAa6tk\nBwPrbJLj0vy14pvDpQfen9bS4/kZw1G17tU0BXlSKO44sxMZMlqgh0UFqjs5E9W4\n6aJKR0bW1RNEVBTmdxs9Ggvlnt7L+J5buIQeX5zFISPAC1i7yLj/meA3nZ8CyWCA\nzYhQYFY5NJ8BOAcuxLWfDxAxU+JnESKBKHDetTkCgYEApKUucNwocPHPG8VwT9rj\nEjTCllz9sdaRoQW8KYmYErCpaf03HRe6DYS5VnVyeZfkSQXxNW3/lBAJwE5nZqJw\nQvW9fSXgUFmdQrR1yiI/Tc488ynPPti41o2UbVAHgfYEDHbaSPJzcFtsdhAeTH4E\nAOddx6hc82SCHdLHSoPwi7c=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-xpayr@drophouse-v2.iam.gserviceaccount.com",
+  "client_id": "114625741000209094163",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-xpayr%40drophouse-v2.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

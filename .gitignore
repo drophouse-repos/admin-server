@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Environment variables
+.env
+env/
+murray/
+*.db
+
+# Others
+*.py[cod]
+*$py.class
+*.so
+*.log
