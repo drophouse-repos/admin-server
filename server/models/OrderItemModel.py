@@ -20,9 +20,11 @@ class OrderStatus(str, Enum):
     RETURNED = "returned"
     REFUNDED = "refunded"
 
+
 class UserTypes(str, Enum):
-    ALUMNI = 'alumni'
-    STUDENT = 'student'
+    ALUMNI = "alumni"
+    STUDENT = "student"
+
 
 class OrderItem(BaseModel):
     user_id: Annotated[str, StringConstraints(min_length=1)] = Field(

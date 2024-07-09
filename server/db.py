@@ -12,10 +12,11 @@ db = None
 MONGO_URL = os.environ.get("MONGO_URL")
 DB_ENV = os.environ.get("DB_ENV")
 
+
 async def connect_to_mongo():
     global mongodb_client, db
     mongodb_client = AsyncIOMotorClient(MONGO_URL)
-    
+
     if DB_ENV and DB_ENV == "prod":
         db = mongodb_client.UserInfo
     else:
