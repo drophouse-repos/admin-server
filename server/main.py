@@ -28,17 +28,8 @@ app = FastAPI()
 email_service = EmailService()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://drophouse.vercel.app",
-        "https://superman-kappa.vercel.app",
-        "https://staging-fe-v2.vercel.app",
-        "https://drophouse.rose-hulman.edu",
-        "https://student-model-rose.vercel.app",
-        "https://drophouse-student.rose-hulman.edu",
-        "https://demo.drophouse.ai",
-        "https://drophouse.ai",
-    ],
+
+    allow_origins=["http://localhost:3000", "https://superman-kappa.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -94,6 +85,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
-port = int(os.environ.get("SERVER_PORT")) if os.environ.get("SERVER_PORT") else 80
+port = int(os.environ.get("SERVER_PORT")) if os.environ.get("SERVER_PORT") else 8080
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=port)
