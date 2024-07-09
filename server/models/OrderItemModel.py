@@ -32,14 +32,6 @@ class OrderItem(BaseModel):
     )
     user_type: UserTypes = Field(..., description="Usertype is required.")
 
-    org_id: Annotated[str, StringConstraints(min_length=1)] = Field(
-        ..., alias="org_id", description="Organisation ID is required."
-    )
-
-    org_name: Annotated[str, StringConstraints(min_length=1)] = Field(
-        ..., alias="org_name", description="Organisation Name is required."
-    )
-
     order_id: Annotated[str, StringConstraints(min_length=1)] = Field(
         ..., alias="order_id", description="Unique order ID is required."
     )
