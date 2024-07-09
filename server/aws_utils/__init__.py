@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 def generate_presigned_url(object_name, bucket_name, expiration=3600):
     # Generate a presigned URL for the S3 object
-    s3_client = boto3.client('s3', region_name='us-east-2',
-                  config=Config(signature_version='s3v4'))
+    s3_client = boto3.client(
+        "s3", region_name="us-east-2", config=Config(signature_version="s3v4")
+    )
     try:
         response = s3_client.generate_presigned_url(
             "get_object",
@@ -43,17 +44,29 @@ def processAndSaveImage(image_data: str, img_id: str, s3_bucket_name: str):
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG", quality=85)
         compressed_image_bytes = buffered.getvalue()
-        s3_client = boto3.client('s3', region_name='us-east-2',
-                  config=Config(signature_version='s3v4'))
+        s3_client = boto3.client(
+            "s3", region_name="us-east-2", config=Config(signature_version="s3v4")
+        )
         image_key = f"{img_id}.jpg"
 
         s3_client.upload_fileobj(
             io.BytesIO(compressed_image_bytes),
             s3_bucket_name,
             image_key,
-            ExtraArgs={"ACL": "public-read", "ContentType": "image/jpeg", "ContentDisposition": "inline"},
+            ExtraArgs={
+                "ACL": "public-read",
+                "ContentType": "image/jpeg",
+                "ContentDisposition": "inline",
+            },
         )
         return True
     except Exception as error:
         logger.error(f"Error in processAndSaveImage: {error}")
-        raise HTTPException(status_code=500, detail={'message':"Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )

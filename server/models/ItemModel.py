@@ -1,5 +1,10 @@
 import datetime
-from pydantic import StringConstraints, BaseModel, Field, conint  # , EmailStr, validator
+from pydantic import (
+    StringConstraints,
+    BaseModel,
+    Field,
+    conint,
+)  # , EmailStr, validator
 from typing import Optional, Union
 from typing_extensions import Annotated
 

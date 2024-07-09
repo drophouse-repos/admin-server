@@ -9,13 +9,19 @@ import jwt
 load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
+
 # def verify_id_token(authorization: str = Header(None)):
-def verify_id_token(credentials: HTTPAuthorizationCredentials = Security(HTTPBearer()), x_bearer: str = Header(None)):
-    if credentials and x_bearer == 'Alumini':
+def verify_id_token(
+    credentials: HTTPAuthorizationCredentials = Security(HTTPBearer()),
+    x_bearer: str = Header(None),
+):
+    if credentials and x_bearer == "Alumini":
         scheme = credentials.scheme
         token = credentials.credentials
         if not scheme or scheme.lower() != "bearer":
-            raise HTTPException(status_code=401, detail="Unauthorized or malformed token")
+            raise HTTPException(
+                status_code=401, detail="Unauthorized or malformed token"
+            )
 
         try:
             decoded_token = firebase_auth.verify_id_token(token).get("uid")
@@ -23,7 +29,9 @@ def verify_id_token(credentials: HTTPAuthorizationCredentials = Security(HTTPBea
         except firebase_auth.InvalidIdTokenError as e:
             raise HTTPException(status_code=69, detail="Invalid ID token: {e}")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error verifying ID token: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Error verifying ID token: {e}"
+            )
     if credentials:
         token = credentials.credentials
         try:
@@ -35,4 +43,3 @@ def verify_id_token(credentials: HTTPAuthorizationCredentials = Security(HTTPBea
             raise HTTPException(status_code=401, detail="Invalid token")
     elif authorization is None:
         raise HTTPException(status_code=401, detail="Authorization header is missing")
-
