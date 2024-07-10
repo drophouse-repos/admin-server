@@ -356,15 +356,13 @@ async def download_student_verified_orders(
                         result = generate_vector_image(image_data, image)
                         if result:
                             logger.info(f"Vector Generated : {image}")
-                            is_updated = await db_ops.update(
-                                order["user_id"], order["order_id"], "prepared"
-                            )
+                            is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
                             if is_updated:
                                 logger.info(f"Status updated : {image}")
                             else:
-                                logger.error(
-                                    f"Not able to update status, Error: {image}"
-                                )
+                                logger.error(f"Not able to update status, Error: {image}")
+                                if os.path.exists(result):
+                                    os.remove(result)
                         else:
                             logger.error(f"Vector Error: {image}")
 

@@ -33,85 +33,64 @@ def image_to_base64(image_path):
         return encoded_string.decode("utf-8")
 
 
-def applyMask_and_removeBackground(input_image_url, mask_path, img_id, save_path=None):
+def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
     try:
         shape_image = Image.open(mask_path).convert("RGBA")
-
-        background_image = ""
+        
         unique_id = uuid.uuid4()
-        image_path = (
-            save_path if save_path else os.path.join(process_folder, f"{unique_id}.png")
-        )
-        if "data:image" in input_image_url:
+        image_path = os.path.join(process_folder, f'{unique_id}.png')
+        
+        if 'data:image' in input_image_url:
             input_image_url = input_image_url.split(",")[1]
             jpeg_data = base64.b64decode(input_image_url)
-
-            background_image = (
-                Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
-            )
+            background_image = Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
         else:
             response = requests.get(input_image_url)
-            background_image = (
-                Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
-            )
-
+            background_image = Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
+        
         if not background_image:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "message": "Image not found",
-                    "currentFrame": getframeinfo(currentframe()),
-                },
-            )
-
+            raise Exception("Image not found")
+        
+        # Composite the images
         r, g, b, a = shape_image.split()
         composite_image = Image.composite(shape_image, background_image, a)
         composite_image.save(image_path)
 
-        # removing background
-        image = cv2.imread(image_path)
+        # Remove green background using a color range filter
+        image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
         os.remove(image_path)
-
-        mask = np.zeros(image.shape[:2], np.uint8)
-        mask[:] = cv2.GC_PR_BGD
-
-        height, width = image.shape[:2]
-        fg_rect = (
-            int(width * 0.1),
-            int(height * 0.1),
-            int(width * 0.9),
-            int(height * 0.9),
-        )
-
-        mask[fg_rect[1] : fg_rect[3], fg_rect[0] : fg_rect[2]] = cv2.GC_PR_FGD
-
-        bgd_model = np.zeros((1, 65), np.float64)
-        fgd_model = np.zeros((1, 65), np.float64)
-
-        cv2.grabCut(image, mask, None, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_MASK)
-        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype("uint8")
-        foreground = image * mask2[:, :, np.newaxis]
-
-        b, g, r = cv2.split(foreground)
-        alpha_channel = mask2 * 255
+        
+        # Convert image to BGR (cv2 works with BGR format)
+        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
+        
+        # Define the green screen color range
+        lower_green = np.array([0, 100, 0, 255], dtype=np.uint8)
+        upper_green = np.array([120, 255, 120, 255], dtype=np.uint8)
+        
+        # Create a mask to remove the green background
+        mask = cv2.inRange(image_bgr, lower_green, upper_green)
+        mask_inv = cv2.bitwise_not(mask)
+        
+        # Extract the foreground
+        foreground = cv2.bitwise_and(image, image, mask=mask_inv)
+        
+        # Create alpha channel based on the mask
+        b, g, r, a = cv2.split(foreground)
+        alpha_channel = cv2.bitwise_and(a, a, mask=mask_inv)
         foreground_with_alpha = cv2.merge([b, g, r, alpha_channel])
+        
+        # Save the result
         cv2.imwrite(image_path, foreground_with_alpha)
 
-        # convert image dpi => 200
+        # Convert image dpi => 200
         with Image.open(image_path) as img:
-            original_size = img.size
-            new_dpi = (200, 200)
-            img.save(image_path, dpi=new_dpi)
+            img.save(image_path, dpi=(200, 200))
 
         base64_string = image_to_base64(image_path)
         os.remove(image_path)
-
+        
         url = processAndSaveImage(base64_string, img_id)
-        logger.info(
-            f"Image masked and recoreded : for img_id : {img_id} and url : {url}"
-        )
         return url
-
     except Exception as error:
         logger.error(f"Error in printful_utils : {error}")
         raise HTTPException(
