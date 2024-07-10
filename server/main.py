@@ -46,7 +46,7 @@ async def session_middleware(request: Request, call_next):
             key="session",
             value=session,
             httponly=True,
-            secure=True,  # Ensures the cookie is only sent over HTTPS
+            secure=True,
         )
     return response
 
