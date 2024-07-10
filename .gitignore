@@ -4,7 +4,6 @@ __pycache__/
 # Environment variables
 .env
 env/
-murray/
 *.db
 
 # Others
