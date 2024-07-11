@@ -7,7 +7,6 @@ import certifi
 
 load_dotenv(verbose=True, override=True)
 
-
 mongodb_client = None
 db = None
 MONGO_URL = os.environ.get("MONGO_URL")

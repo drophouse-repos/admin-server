@@ -107,7 +107,7 @@ def generate_vector_image(image_url, file_name):
             with open(f"{output_folder}/{file_name}.eps", "wb") as out:
                 out.write(response.content)
 
-            return True
+            return f"{output_folder}/{file_name}.eps"
         else:
             logger.error("Error:", response.status_code, response.text)
             return False
