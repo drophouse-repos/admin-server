@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from database.BASE import BaseDatabaseOperation
 import os
 import certifi
+
 load_dotenv(verbose=True, override=True)
 
 mongodb_client = None

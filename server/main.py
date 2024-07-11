@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from utils.format_error import format_error
 
-from routers import admin_dashboard_router, org_router
+from routers import admin_dashboard_router, org_router, prices_router
 import uvicorn
 import logging
 from db import connect_to_mongo, close_mongo_connection
@@ -76,6 +76,7 @@ app.add_event_handler("startup", connect_to_mongo)
 app.add_event_handler("shutdown", close_mongo_connection)
 app.include_router(admin_dashboard_router)
 app.include_router(org_router)
+app.include_router(prices_router)
 
 
 @app.exception_handler(RequestValidationError)
