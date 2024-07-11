@@ -3,9 +3,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 from database.BASE import BaseDatabaseOperation
 import os
-
+import certifi
 load_dotenv(verbose=True, override=True)
-
 
 mongodb_client = None
 db = None
@@ -15,7 +14,7 @@ DB_ENV = os.environ.get("DB_ENV")
 
 async def connect_to_mongo():
     global mongodb_client, db
-    mongodb_client = AsyncIOMotorClient(MONGO_URL)
+    mongodb_client = AsyncIOMotorClient(MONGO_URL, tlsCAFile=certifi.where())
 
     if DB_ENV and DB_ENV == "prod":
         db = mongodb_client.UserInfo
