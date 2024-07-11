@@ -29,12 +29,10 @@ from utils.generate_vector_ai import (
 )
 
 allowedUsers = [
-    "kush@drophouse.art",
-    "trilok@drophouse.art",
+    "trilokshan@drophouse.ai",
     "kush@drophouse.ai",
     "balapradeepbala@gmail.com",
     "muthuselvam.m99@gmail.com",
-    "user3@example.com",
 ]
 
 email_service = EmailService()
@@ -356,13 +354,15 @@ async def download_student_verified_orders(
                         result = generate_vector_image(image_data, image)
                         if result:
                             logger.info(f"Vector Generated : {image}")
-                            is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
+                            is_updated = await db_ops.update(
+                                order["user_id"], order["order_id"], "prepared"
+                            )
                             if is_updated:
                                 logger.info(f"Status updated : {image}")
                             else:
-                                logger.error(f"Not able to update status, Error: {image}")
-                                if os.path.exists(result):
-                                    os.remove(result)
+                                logger.error(
+                                    f"Not able to update status, Error: {image}"
+                                )
                         else:
                             logger.error(f"Vector Error: {image}")
 
