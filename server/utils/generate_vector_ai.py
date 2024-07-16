@@ -21,6 +21,9 @@ VECTORIZER_MODE = os.environ.get("VECTORIZER_MODE")
 VECTORIZER_SECRET = os.environ.get("VECTORIZER_SECRET")
 VECTORIZER_TOKEN = os.environ.get("VECTORIZER_PRIVATE_TOKEN")
 
+if VECTORIZER_MODE == 'prod':
+    VECTORIZER_MODE = 'production'
+
 zip_folder = "../student_module_zip_download"
 output_folder = "../student_module_zip_download/zip"
 if not os.path.exists(output_folder):

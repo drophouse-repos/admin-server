@@ -138,7 +138,10 @@ async def update_order_status(
 
 
 @admin_dashboard_router.post("/print_order")
-async def print_order(order_info: OrderItem):
+async def print_order(
+    order_info: OrderItem,
+    db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
+):
     try:
         printful_mapping = products_and_variants_map()
 
@@ -299,6 +302,12 @@ async def print_order(order_info: OrderItem):
         print(order_data)
         endpoint = "/orders"
         response = printful_request(endpoint, method="POST", data=order_data)
+        is_updated = await db_ops.update(order_info["user_id"], order_info["order_id"], "prepared")
+        if is_updated:
+            logger.info(f"Status updated /printful: {image}")
+        else:
+            logger.error(f"Not able to update status /printful, Error: {image}")
+
         return JSONResponse(
             content=json_util.dumps({"message": "Order added to printful"})
         )
@@ -354,15 +363,11 @@ async def download_student_verified_orders(
                         result = generate_vector_image(image_data, image)
                         if result:
                             logger.info(f"Vector Generated : {image}")
-                            is_updated = await db_ops.update(
-                                order["user_id"], order["order_id"], "prepared"
-                            )
+                            is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
                             if is_updated:
                                 logger.info(f"Status updated : {image}")
                             else:
-                                logger.error(
-                                    f"Not able to update status, Error: {image}"
-                                )
+                                logger.error(f"Not able to update status, Error: {image}")
                         else:
                             logger.error(f"Vector Error: {image}")
 
