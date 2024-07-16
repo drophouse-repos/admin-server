@@ -33,6 +33,7 @@ xmlsec = "^1.3.14"
 opencv-python = "^4.10.0.84"
 itsdangerous = "^2.2.0"
 email-validator = "^2.2.0"
+pandas = "^2.2.2"
 
 
 [build-system]
