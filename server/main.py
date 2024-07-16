@@ -87,7 +87,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
-port = int(os.environ.get("SERVER_PORT")) if os.environ.get("SERVER_PORT") else 80
+port = int(os.environ.get("SERVER_PORT")) if os.environ.get("SERVER_PORT") else 8080
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=port)
