@@ -1,4 +1,4 @@
-app = 'admin-server-test'
+app = 'admin-server-drophouse'
 primary_region = 'ewr'
 org = "drophouse_dev"
 
