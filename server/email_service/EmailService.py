@@ -38,8 +38,7 @@ class EmailService:
         to_mail = (
             os.environ.get("TO_EMAIL")
             if os.environ.get("TO_EMAIL")
-            # else "support@drophouse.art"
-            else "muthuselvam.m99@gmail.com"
+            else "support@drophouse.art"
         )
         message_body = ""
         for exc_head in exception:
@@ -76,8 +75,7 @@ class EmailService:
         to_mail = (
             os.environ.get("TO_EMAIL")
             if os.environ.get("TO_EMAIL")
-            # else "support@drophouse.art"
-            else "muthuselvam.m99@gmail.com"
+            else "support@drophouse.art"
         )
         message_body = (
             message_body
