@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from utils.format_error import format_error
 
-from routers import admin_dashboard_router, org_router, prices_router
+from routers import admin_dashboard_router, org_router, prices_router, order_info_router
 import uvicorn
 import logging
 from db import connect_to_mongo, close_mongo_connection
@@ -29,7 +29,7 @@ email_service = EmailService()
 app.add_middleware(
     CORSMiddleware,
 
-    allow_origins=["http://localhost:3000", "https://superman-kappa.vercel.app"],
+    allow_origins=["http://localhost:3001","http://localhost:3000", "https://superman-kappa.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,6 +77,7 @@ app.add_event_handler("shutdown", close_mongo_connection)
 app.include_router(admin_dashboard_router)
 app.include_router(org_router)
 app.include_router(prices_router)
+app.include_router(order_info_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -86,7 +87,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
-port = int(os.environ.get("SERVER_PORT")) if os.environ.get("SERVER_PORT") else 8080
+port = int(os.environ.get("SERVER_PORT")) if os.environ.get("SERVER_PORT") else 80
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=port)
