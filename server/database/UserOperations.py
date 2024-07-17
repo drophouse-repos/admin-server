@@ -82,25 +82,25 @@ class UserOperations(BaseDatabaseOperation):
                                     img_id, "browse-image-v2"
                                 )
                             order["images"][
-                                user_data["first_name"]
+                                item["size"]
+                                + "_"
+                                + user_data["first_name"]
                                 + "_"
                                 + user_data["last_name"]
-                                + "_"
-                                + item["size"]
                             ] = {}
                             order["images"][
-                                user_data["first_name"]
+                                item["size"]
+                                + "_"
+                                + user_data["first_name"]
                                 + "_"
                                 + user_data["last_name"]
-                                + "_"
-                                + item["size"]
                             ]["img_path"] = item["img_url"]
                             order["images"][
-                                user_data["first_name"]
+                                item["size"]
+                                + "_"
+                                + user_data["first_name"]
                                 + "_"
                                 + user_data["last_name"]
-                                + "_"
-                                + item["size"]
                             ]["img_id"] = item["img_id"]
                     verfied_orders.append(order)
             return verfied_orders
