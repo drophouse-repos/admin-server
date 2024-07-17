@@ -106,11 +106,15 @@ def generate_vector_image(image_url, file_name):
             },
             auth=(VECTORIZER_TOKEN, VECTORIZER_SECRET),
         )
+        size = file_name.split("_", 1)[0]
+        if not os.path.exists(f"{output_folder}/{size}"):
+            os.makedirs(f"{output_folder}/{size}")
+
         if response.status_code == requests.codes.ok:
-            with open(f"{output_folder}/{file_name}.eps", "wb") as out:
+            with open(f"{output_folder}/{size}/{file_name}.eps", "wb") as out:
                 out.write(response.content)
 
-            return f"{output_folder}/{file_name}.eps"
+            return f"{output_folder}/{size}/{file_name}.eps"
         else:
             logger.error("Error:", response.status_code, response.text)
             return False
