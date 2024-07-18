@@ -27,9 +27,6 @@ logger = logging.getLogger(__name__)
 key = os.environ.get("OPENAI_KEY")
 client = AsyncOpenAI(api_key=key)
 
-def get_ai_model() -> TitanImageGenerator:
-	return TitanImageGenerator()
-
 async def generate_prompts(prompts: List[str], numberOfPrompts: int):
 	try:
 		prompts_per_theme = numberOfPrompts // len(prompts)
@@ -65,8 +62,7 @@ async def generate_prompts(prompts: List[str], numberOfPrompts: int):
 			completion = await client.chat.completions.create(
 				model="gpt-3.5-turbo",
 				messages=messages,
-				temperature=0.7,
-				max_tokens=150
+				temperature=0.7
 			)
 
 			response = completion.choices[0].message.content
