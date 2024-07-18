@@ -54,7 +54,7 @@ class TitanImageGenerator:
 			duration = datetime.now() - start
 			img_id = str(uuid.uuid4())
 			img_url = self.processAndSaveImage(base64.b64encode(image_bytes).decode('utf-8'), img_id, "browse-image-v2")
-			return idx, img_id, prompt, img_url, 'titan'
+			return idx, img_id, prompt, 'titan'
 		except ClientError as e:
 			duration = datetime.now() - start
 			return handle_boto3_error(e)
@@ -97,8 +97,9 @@ class TitanImageGenerator:
 	            },
 			)
 
-			url = generate_presigned_url(img_id, s3_bucket_name)
-			return url
+			# url = generate_presigned_url(img_id, s3_bucket_name)
+			# return url
+			return img_id
 		except NoCredentialsError:
 			logger.error("No AWS credentials found")
 			raise HTTPException(
