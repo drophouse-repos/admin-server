@@ -26,6 +26,15 @@ class OrderOperations(BaseDatabaseOperation):
             logger.critical(f"Error adding to order: {e}")
             return False
 
+    async def create_order(self, order_info: OrderItem) -> bool:
+        try:
+            order_data = order_info.model_dump()
+            orders_insert_result = await self.db.orders.insert_one(order_data)
+            return orders_insert_result.inserted_id is not None
+        except Exception as e:
+            logger.critical(f"Error adding to order: {e}")
+            return False
+
     async def remove(self, user_id: str, order_info: OrderItem) -> bool:
         try:
             order_id = order_info.order_id
@@ -60,6 +69,19 @@ class OrderOperations(BaseDatabaseOperation):
                 user_update_result.modified_count > 0
                 and orders_update_result.modified_count > 0
             )
+        except Exception as e:
+            logger.critical(f"Error in updating order: {e}")
+            return False
+
+    async def update_order(self, updated_order_info: OrderItem):
+        try:
+            updated_order_data = updated_order_info.model_dump()
+            order_id = updated_order_info.order_id
+
+            orders_update_result = await self.db.orders.update_one(
+                {"order_id": order_id}, {"$set": updated_order_data}
+            )
+            return orders_update_result.modified_count > 0
         except Exception as e:
             logger.critical(f"Error in updating order: {e}")
             return False
