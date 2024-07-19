@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from ai_models.TitanImageGenerator import TitanImageGenerator
 from utils.error_check import handle_openai_error
-from profanity_check import predict, predict_prob
 from database.BASE import BaseDatabaseOperation
 from inspect import currentframe, getframeinfo
 from openai import AsyncOpenAI, OpenAI

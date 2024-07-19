@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from utils.format_error import format_error
 
-from routers import admin_dashboard_router, org_router, prices_router, order_info_router
+from routers import admin_dashboard_router, org_router, prices_router, order_info_router, bulk_order_router
 import uvicorn
 import logging
 from db import connect_to_mongo, close_mongo_connection
@@ -62,8 +62,8 @@ async def http_exception_handler(request, exc):
     response = await format_error(
         path=path, name=name, code=exc.status_code, exception=exc.detail
     )
-    if exc.status_code in SEND_EMAIL_FOR_STATUS_CODES:
-        email_service.notify_error(response)
+    # if exc.status_code in SEND_EMAIL_FOR_STATUS_CODES:
+        # email_service.notify_error(response)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
@@ -78,6 +78,7 @@ app.include_router(admin_dashboard_router)
 app.include_router(org_router)
 app.include_router(prices_router)
 app.include_router(order_info_router)
+app.include_router(bulk_order_router)
 
 
 @app.exception_handler(RequestValidationError)
