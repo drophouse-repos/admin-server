@@ -23,6 +23,7 @@ HARD_CODED_PASSWORD = "Drophouse23#"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+min_retry = 10
 @bulk_order_router.post("/bulk-order")
 async def make_bulk_order(
     request: BulkOrderRequest,
@@ -35,12 +36,16 @@ async def make_bulk_order(
         generated_data = await generate_prompts(request.prompts, request.numImages)
         response_data = await generate_images(generated_data)
 
+        retry = 0
         user_data = request.file
+        retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         for idx in range(len(user_data)):
             imageresponse = response_data[idx]
             if isinstance(imageresponse, Exception) or imageresponse == None:
-                logger.info(f"Image Generation failed : retrying ...")
-                imageresponse = await generate_failed_image(request.prompts)
+                if retry > retry_limit:
+                    raise HTTPException(status_code=400, detail={'message': "Image regeneration thershold reached", 'currentFrame': getframeinfo(currentframe())})
+                logger.info(f"Image Generation failed : retrying [{retry}/{retry_limit}]")
+                imageresponse, retry = await generate_failed_image(request.prompts, retry, retry_limit)
                 
             order_id = str(uuid.uuid4())
             if 'order_id' in user_data[idx]:
@@ -99,15 +104,24 @@ async def make_bulk_order(
         logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
 
-async def generate_failed_image(prompts: List[str]):
-    logger.info(f"Image Generation failed : retrying begin")
-    generated_data = await generate_prompts([random.choice(prompts)], 1)
-    response_data = await generate_images(generated_data)
+async def generate_failed_image(prompts: List[str], retry: int, retry_limit: int):
+    try:
+        retry = retry + 1
+        logger.info(f"Image Generation failed : retrying begin [{retry-1}/{retry_limit}]")
+        generated_data = await generate_prompts([random.choice(prompts)], 1)
+        response_data = await generate_images(generated_data)
 
-    imageresponse = response_data[0]
-    if isinstance(imageresponse, Exception) or imageresponse == None:
-        logger.info(f"Image Generation failed : retrying failed")
-        return await generate_failed_image(prompts)
+        imageresponse = response_data[0]
+        if isinstance(imageresponse, Exception) or imageresponse == None:
+            logger.info(f"Image Generation failed : retrying failed [{retry-1}/{retry_limit}]")
+            if retry > retry_limit:
+                raise HTTPException(status_code=400, detail={'message': "Image regeneration thershold reached", 'currentFrame': getframeinfo(currentframe())})
+            return await generate_failed_image(prompts, retry, retry_limit)
 
-    logger.info(f"Image Generation failed : retrying success")
-    return imageresponse
+        logger.info(f"Image Generation failed : retrying success")
+        return imageresponse, retry
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
