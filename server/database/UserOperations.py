@@ -70,7 +70,22 @@ class UserOperations(BaseDatabaseOperation):
                     and order["user_type"] == "student"
                     and order["status"] == "verified"
                 ):
+                    fname=''
+                    lname=''
+
                     user_data = user_dict.get(order["user_id"], {})
+                    if 'shipping_info' in order and 'firstName' in order['shipping_info'] and 'lastName' in order['shipping_info']:
+                        print('picking name from shipping_info')
+                        fname = order['shipping_info']['firstName']
+                        lname = order['shipping_info']['lastName']
+                    if 'first_name' in user_data and 'last_name' in user_data:
+                        print('picking name from user_data')
+                        fname = user_data['first_name']
+                        lname = user_data['last_name']
+
+                    if fname == '' and lname == '':
+                        continue
+
                     order["images"] = {}
                     if "item" in order:
                         for item in order["item"]:
@@ -84,23 +99,23 @@ class UserOperations(BaseDatabaseOperation):
                             order["images"][
                                 item["size"]
                                 + "_"
-                                + user_data["first_name"]
+                                + fname
                                 + "_"
-                                + user_data["last_name"]
+                                + lname
                             ] = {}
                             order["images"][
                                 item["size"]
                                 + "_"
-                                + user_data["first_name"]
+                                + fname
                                 + "_"
-                                + user_data["last_name"]
+                                + lname
                             ]["img_path"] = item["img_url"]
                             order["images"][
                                 item["size"]
                                 + "_"
-                                + user_data["first_name"]
+                                + fname
                                 + "_"
-                                + user_data["last_name"]
+                                + lname
                             ]["img_id"] = item["img_id"]
                     verfied_orders.append(order)
             return verfied_orders

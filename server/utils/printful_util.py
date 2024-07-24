@@ -64,11 +64,21 @@ def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
         image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
         
         # Define the green screen color range
-        lower_green = np.array([0, 100, 0, 255], dtype=np.uint8)
-        upper_green = np.array([120, 255, 120, 255], dtype=np.uint8)
+        # lower_green = np.array([0, 100, 0, 255], dtype=np.uint8)
+        # upper_green = np.array([120, 255, 120, 255], dtype=np.uint8)
+        # lower_green = np.array([81, 177, 37, 255], dtype=np.uint8)
+        # upper_green = np.array([83, 179, 39, 255], dtype=np.uint8)
+        lower_green = np.array([82, 178, 38, 255], dtype=np.uint8)
+        upper_green = np.array([82, 178, 38, 255], dtype=np.uint8)
         
         # Create a mask to remove the green background
         mask = cv2.inRange(image_bgr, lower_green, upper_green)
+
+        # Apply morphological operations to clean up the mask
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        
         mask_inv = cv2.bitwise_not(mask)
         
         # Extract the foreground
