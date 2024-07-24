@@ -92,7 +92,7 @@ async def clean_old_data():
         )
 
 
-def generate_vector_image(image_url, file_name):
+def generate_vector_image(image_url, file_name, mode):
     try:
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
@@ -100,7 +100,7 @@ def generate_vector_image(image_url, file_name):
         response = requests.post(
             "https://vectorizer.ai/api/v1/vectorize",
             data={
-                "mode": VECTORIZER_MODE,
+                "mode": mode,
                 "image.url": image_url,
                 "output.file_format": "eps",
             },

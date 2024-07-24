@@ -341,12 +341,19 @@ async def get_variants(product_id):
 async def get_products_and_variants_map():
     return products_and_variants_map()
 
+class DownloadRequest(BaseModel):
+    password: str
+    mode: str
 
+HARD_CODED_PASSWORD = 'Drophouse23#'
 @admin_dashboard_router.post("/download_student_verified_orders")
 async def download_student_verified_orders(
+    request: DownloadRequest,
     background_tasks: BackgroundTasks,
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
 ):
+    if request.password != HARD_CODED_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid password")
     try:
         clear_old = await clean_old_data()
         mask_image_path = "./images/masks/elephant_mask.png"
@@ -360,7 +367,7 @@ async def download_student_verified_orders(
                             mask_image_path,
                             order["images"][image]["img_id"],
                         )
-                        result = generate_vector_image(image_data, image)
+                        result = generate_vector_image(image_data, image, request.mode)
                         if result:
                             logger.info(f"Vector Generated : {image}")
                             is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
