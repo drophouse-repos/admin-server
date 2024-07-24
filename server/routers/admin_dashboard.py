@@ -7,6 +7,7 @@ from bson import json_util
 from fastapi import Depends
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from typing import List
 from fastapi.responses import JSONResponse, FileResponse
 from inspect import currentframe, getframeinfo
 from database.BASE import BaseDatabaseOperation
@@ -344,6 +345,7 @@ async def get_products_and_variants_map():
 class DownloadRequest(BaseModel):
     password: str
     mode: str
+    order_ids: List[str]
 
 HARD_CODED_PASSWORD = 'Drophouse23#'
 @admin_dashboard_router.post("/download_student_verified_orders")
@@ -357,7 +359,7 @@ async def download_student_verified_orders(
     try:
         clear_old = await clean_old_data()
         mask_image_path = "./images/masks/elephant_mask.png"
-        result = await db_ops.get_student_order()
+        result = await db_ops.get_student_order(request.order_ids)
         if result:
             for order in result:
                 if "images" in order:
@@ -370,11 +372,11 @@ async def download_student_verified_orders(
                         result = generate_vector_image(image_data, image, request.mode)
                         if result:
                             logger.info(f"Vector Generated : {image}")
-                            # is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
-                            # if is_updated:
-                            #     logger.info(f"Status updated : {image}")
-                            # else:
-                            #     logger.error(f"Not able to update status, Error: {image}")
+                            is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
+                            if is_updated:
+                                logger.info(f"Status updated : {image}")
+                            else:
+                                logger.error(f"Not able to update status, Error: {image}")
                         else:
                             logger.error(f"Vector Error: {image}")
 
