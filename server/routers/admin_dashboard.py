@@ -37,13 +37,17 @@ allowedUsers = [
 ]
 
 email_service = EmailService()
+HARD_CODED_PASSWORD = 'Drophouse23#'
 
+class DownloadRequest(BaseModel):
+    password: str
+    mode: str
+    order_ids: List[str]
 
 class EmailRequest(BaseModel):
     to_mail: str
     subject: str
     content: str
-
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -342,12 +346,6 @@ async def get_variants(product_id):
 async def get_products_and_variants_map():
     return products_and_variants_map()
 
-class DownloadRequest(BaseModel):
-    password: str
-    mode: str
-    order_ids: List[str]
-
-HARD_CODED_PASSWORD = 'Drophouse23#'
 @admin_dashboard_router.post("/download_student_verified_orders")
 async def download_student_verified_orders(
     request: DownloadRequest,
@@ -372,11 +370,12 @@ async def download_student_verified_orders(
                         result = generate_vector_image(image_data, image, request.mode)
                         if result:
                             logger.info(f"Vector Generated : {image}")
-                            is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
-                            if is_updated:
-                                logger.info(f"Status updated : {image}")
-                            else:
-                                logger.error(f"Not able to update status, Error: {image}")
+                            if request.mode == 'production':
+                                is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
+                                if is_updated:
+                                    logger.info(f"Status updated : {image}")
+                                else:
+                                    logger.error(f"Not able to update status, Error: {image}")
                         else:
                             logger.error(f"Vector Error: {image}")
 
