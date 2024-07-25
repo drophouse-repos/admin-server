@@ -48,9 +48,9 @@ class UserOperations(BaseDatabaseOperation):
             logger.error(f"Error retrieving orders with user data: {e}")
             return []
 
-    async def get_student_order(self) -> list:
+    async def get_student_order(self, order_ids: list[str]) -> list:
         try:
-            orders = await self.db.orders.find({}).to_list(length=None)
+            orders = await self.db.orders.find({'order_id': {'$in': order_ids}}).to_list(length=None)
             if not orders:
                 return []
 
@@ -64,24 +64,19 @@ class UserOperations(BaseDatabaseOperation):
 
             verfied_orders = []
             for order in orders:
-                if (
-                    "user_type" in order
-                    and "status" in order
-                    and order["user_type"] == "student"
-                    and order["status"] == "verified"
-                ):
+                if "status" in order and order["status"] == "verified":
                     fname=''
                     lname=''
 
                     user_data = user_dict.get(order["user_id"], {})
-                    if 'shipping_info' in order and 'firstName' in order['shipping_info'] and 'lastName' in order['shipping_info']:
-                        print('picking name from shipping_info')
-                        fname = order['shipping_info']['firstName']
-                        lname = order['shipping_info']['lastName']
                     if 'first_name' in user_data and 'last_name' in user_data:
                         print('picking name from user_data')
                         fname = user_data['first_name']
                         lname = user_data['last_name']
+                    if 'shipping_info' in order and 'firstName' in order['shipping_info'] and 'lastName' in order['shipping_info']:
+                        print('picking name from shipping_info')
+                        fname = order['shipping_info']['firstName']
+                        lname = order['shipping_info']['lastName']
 
                     if fname == '' and lname == '':
                         continue
