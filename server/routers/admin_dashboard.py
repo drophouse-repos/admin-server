@@ -13,6 +13,7 @@ from inspect import currentframe, getframeinfo
 from database.BASE import BaseDatabaseOperation
 from fastapi import APIRouter, Body, HTTPException, BackgroundTasks
 from database.UserOperations import UserOperations
+from database.OrderOperations import OrderOperations
 from email_service.EmailService import EmailService
 from models.OrderItemModel import OrderItem
 from aws_utils import generate_presigned_url
@@ -39,6 +40,11 @@ allowedUsers = [
 email_service = EmailService()
 HARD_CODED_PASSWORD = 'Drophouse23#'
 
+class DeleteRequest(BaseModel):
+    user_id: str
+    order_id: str
+
+      
 class DownloadRequest(BaseModel):
     password: str
     mode: str
@@ -96,6 +102,28 @@ async def get_admin_orders(
             },
         )
 
+@admin_dashboard_router.post("/delete_order")
+async def delete_order(
+    order_info: DeleteRequest,
+    db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+):
+    try:
+        result = await db_ops.delete_order(order_info.order_id)
+        if result:
+            return JSONResponse(content=json_util.dumps({"message": "Order deleted successfully"}))
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail={"message": "Order not found or no update needed","currentFrame": getframeinfo(currentframe())},
+            )
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error in update_order_status: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={"message": "Internal Server Error","currentFrame": getframeinfo(currentframe()),"detail": str(traceback.format_exc())}
+        )
 
 @admin_dashboard_router.post("/update_order_status")
 async def update_order_status(
@@ -140,7 +168,6 @@ async def update_order_status(
                 "detail": str(traceback.format_exc()),
             },
         )
-
 
 @admin_dashboard_router.post("/print_order")
 async def print_order(

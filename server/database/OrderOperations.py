@@ -35,6 +35,18 @@ class OrderOperations(BaseDatabaseOperation):
             logger.critical(f"Error adding to order: {e}")
             return False
 
+    async def delete_order(self, order_id: str) -> bool:
+        try:
+            orders_delete_result = await self.db.orders.delete_one(
+                {"order_id": order_id}
+            )
+            return (
+                orders_delete_result.deleted_count > 0
+            )
+        except Exception as e:
+            logger.critical(f"Error in removing order: {e}")
+            return False
+
     async def remove(self, user_id: str, order_info: OrderItem) -> bool:
         try:
             order_id = order_info.order_id
