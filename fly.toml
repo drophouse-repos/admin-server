@@ -1,6 +1,5 @@
 app = 'admin-server-drophouse'
 primary_region = 'ewr'
-org = "drophouse_dev"
 
 [env]
 PORT = "8080"

@@ -46,7 +46,9 @@ async def generate_prompts(prompts: List[str], numberOfPrompts: int):
 					and split the themes with the number of prompts. Remember to only return valid JSON, 
 					no more or less than {num_prompts_for_this_theme} prompts. Your suggestions should increase 
 					the original themes' specificity, uniqueness, different from other prompts, and detail 
-					to generate vivid and engaging images. The structure should be as follows:
+					to generate vivid and engaging images. The designs should be aesthetic and visually appealing.
+     
+     				The structure should be as follows:
 					{{
 						"Prompts": ["Prompt1", "Prompt2", ...., "Prompt{num_prompts_for_this_theme}"]
 					}}
