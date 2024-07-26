@@ -50,8 +50,44 @@ class UserOperations(BaseDatabaseOperation):
 
     async def get_v2(self) -> list:
         try:
-            orders = await self.db.orders.find({},{'_id':0, 'timestamp':0, 'item.timestamp': 0, 'item.price': 0, 'item.thumbnail':0}).to_list(length=None)
+            start = datetime.now()
+            pipeline = [
+                {
+                    '$project': {
+                        'user_id': 1,
+                        'user_type': 1,
+                        'order_id': 1,
+                        'item': {
+                            '$map': {
+                                'input': '$item',
+                                'as': 'i',
+                                'in': {
+                                    'apparel': '$$i.apparel',
+                                    'size': '$$i.size',
+                                    'color': '$$i.color',
+                                    'img_id': '$$i.img_id',
+                                    'prompt': '$$i.prompt',
+                                    'toggled': {
+                                        '$cond': {
+                                            'if': {'$eq': ['$$i.toggled', False]},
+                                            'then': True,
+                                            'else': False
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        'shipping_info': 1,
+                        'status': 1,
+                        'org_id': 1,
+                        'org_name': 1
+                    }
+                }
+            ]
+            orders = await self.db.orders.aggregate(pipeline).to_list(length=None)
             if not orders:
+                duration = datetime.now() - start
+                print(f'Duration : {duration}')
                 return []
             
             for order in orders:
@@ -66,6 +102,8 @@ class UserOperations(BaseDatabaseOperation):
                             img_id, "browse-image-v2"
                         )
 
+            duration = datetime.now() - start
+            print(f'Duration : {duration}')
             return orders
         except Exception as e:
             logger.error(f"Error retrieving orders with user data: {e}")
