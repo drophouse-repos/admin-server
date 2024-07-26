@@ -44,11 +44,6 @@ class DeleteRequest(BaseModel):
     user_id: str
     order_id: str
 
-class OrderRequest(BaseModel):
-    page_index: int
-    filter_by: str
-    filter_value: str
-
 class DownloadRequest(BaseModel):
     password: str
     mode: str
@@ -88,11 +83,10 @@ async def get_admin_orders():
 
 @admin_dashboard_router.post("/admin_orders")
 async def get_admin_orders(
-    request: OrderRequest,
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
 ):
     try:
-        result = await db_ops.get_v2(request.page_index, request.filter_by, request.filter_value)
+        result = await db_ops.get_v2()
         return JSONResponse(content=json_util.dumps(result))
     except HTTPException as http_ex:
         raise http_ex

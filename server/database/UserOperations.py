@@ -48,16 +48,12 @@ class UserOperations(BaseDatabaseOperation):
             logger.error(f"Error retrieving orders with user data: {e}")
             return []
 
-    async def get_v2(self, page_index:int, filter_by:str, filter_value:str) -> list:
+    async def get_v2(self) -> list:
         try:
-            orders_per_page = 20
-            query = {} if filter_value.lower() == 'all' else {filter_by: filter_value}
-
-            skip_documents = (page_index - 1) * orders_per_page
-            orders = await self.db.orders.find(query).skip(skip_documents).limit(orders_per_page).to_list(length=orders_per_page)
+            orders = await self.db.orders.find({},{'_id':0, 'timestamp':0, 'item.timestamp': 0, 'item.price': 0, 'item.thumbnail':0}).to_list(length=None)
             if not orders:
                 return []
-
+            
             for order in orders:
                 if "item" in order:
                     for item in order["item"]:
