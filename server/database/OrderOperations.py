@@ -98,6 +98,17 @@ class OrderOperations(BaseDatabaseOperation):
             logger.critical(f"Error in updating order: {e}")
             return False
 
+    async def get_toggled_url(self, order_id: str) -> list:
+        try:
+            pipeline = [
+                {"$match": {"order_id": order_id}},
+                {"$project": {"item.toggled":1}}
+            ]
+            async for doc in self.db.orders.aggregate(pipeline):
+                return doc
+        except Exception as e:
+            logger.error(f"Error retrieving orders: {e}")
+            return []
     async def get(self, user_id: str) -> list:
         try:
             user = await self.db.users.find_one({"user_id": user_id}, {"orders": 1})

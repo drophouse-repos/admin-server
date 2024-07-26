@@ -44,7 +44,6 @@ class DeleteRequest(BaseModel):
     user_id: str
     order_id: str
 
-      
 class DownloadRequest(BaseModel):
     password: str
     mode: str
@@ -82,12 +81,33 @@ async def get_admin_orders():
         )
 
 
-@admin_dashboard_router.get("/admin_orders")
+@admin_dashboard_router.post("/get_toggled_url")
+async def get_toggled_url(
+    order_id : str,
+    db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+):
+    try:
+        result = await db_ops.get_toggled_url(order_id)
+        return JSONResponse(content=json_util.dumps(result))
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error in get_admin_orders: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )  
+
+@admin_dashboard_router.post("/admin_orders")
 async def get_admin_orders(
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
 ):
     try:
-        result = await db_ops.get()
+        result = await db_ops.get_v2()
         return JSONResponse(content=json_util.dumps(result))
     except HTTPException as http_ex:
         raise http_ex

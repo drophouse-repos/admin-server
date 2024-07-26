@@ -48,6 +48,67 @@ class UserOperations(BaseDatabaseOperation):
             logger.error(f"Error retrieving orders with user data: {e}")
             return []
 
+    async def get_v2(self) -> list:
+        try:
+            start = datetime.now()
+            pipeline = [
+                {
+                    '$project': {
+                        'user_id': 1,
+                        'user_type': 1,
+                        'order_id': 1,
+                        'item': {
+                            '$map': {
+                                'input': '$item',
+                                'as': 'i',
+                                'in': {
+                                    'apparel': '$$i.apparel',
+                                    'size': '$$i.size',
+                                    'color': '$$i.color',
+                                    'img_id': '$$i.img_id',
+                                    'prompt': '$$i.prompt',
+                                    'toggled': {
+                                        '$cond': {
+                                            'if': {'$eq': ['$$i.toggled', False]},
+                                            'then': False,
+                                            'else': True
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        'shipping_info': 1,
+                        'status': 1,
+                        'org_id': 1,
+                        'org_name': 1
+                    }
+                }
+            ]
+            orders = await self.db.orders.aggregate(pipeline).to_list(length=None)
+            if not orders:
+                duration = datetime.now() - start
+                print(f'Duration : {duration}')
+                return []
+            
+            for order in orders:
+                if "item" in order:
+                    for item in order["item"]:
+                        img_id = item["img_id"]
+                        thumbnail_img_id = "t_" + img_id
+                        item["thumbnail"] = generate_presigned_url(
+                            thumbnail_img_id, "thumbnails-cart"
+                        )
+                        item["img_url"] = generate_presigned_url(
+                            img_id, "browse-image-v2"
+                        )
+
+            duration = datetime.now() - start
+            print(f'Duration : {duration}')
+            return orders
+        except Exception as e:
+            logger.error(f"Error retrieving orders with user data: {e}")
+            return []
+
     async def get_student_order(self, order_ids: list[str]) -> list:
         try:
             orders = await self.db.orders.find({'order_id': {'$in': order_ids}}).to_list(length=None)
