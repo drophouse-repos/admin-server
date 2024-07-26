@@ -88,7 +88,7 @@ async def get_admin_orders():
 
 @admin_dashboard_router.post("/admin_orders")
 async def get_admin_orders(
-    request: OrderRequest,
+    request: OrderRequest, 
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
 ):
     try:
