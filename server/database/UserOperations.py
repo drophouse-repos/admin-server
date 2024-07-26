@@ -70,8 +70,8 @@ class UserOperations(BaseDatabaseOperation):
                                     'toggled': {
                                         '$cond': {
                                             'if': {'$eq': ['$$i.toggled', False]},
-                                            'then': True,
-                                            'else': False
+                                            'then': False,
+                                            'else': True
                                         }
                                     }
                                 }
