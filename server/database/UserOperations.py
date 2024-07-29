@@ -126,7 +126,7 @@ class UserOperations(BaseDatabaseOperation):
 
             verfied_orders = []
             for order in orders:
-                if "status" in order and order["status"] == "verified":
+                if "status" in order and order["status"] == "verified" or order["status"] == "prepared":
                     fname=''
                     lname=''
 

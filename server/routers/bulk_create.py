@@ -1,13 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from models.bulkordermodel import BulkOrderRequest
 from models.OrderItemModel import OrderItem
 from models.ShippingModel import ShippingModel
 from models.ItemModel import ItemModel
 from ai_models.utils import generate_prompts, generate_images
 from routers.order_info import PlaceOrderDataRequest, place_order
+from fastapi.responses import JSONResponse, FileResponse
 from aws_utils import generate_presigned_url, processAndSaveImage
 from inspect import currentframe, getframeinfo
 from database.OrderOperations import OrderOperations
+from database.UserOperations import UserOperations
 from database.PricesOperations import PricesOperations
 from database.BASE import BaseDatabaseOperation
 from db import get_db_ops
@@ -15,8 +17,18 @@ import traceback
 from typing import List
 import datetime
 import random
+from bson import json_util
 import logging
 import uuid
+import os
+from utils.printful_util import (
+    applyMask_and_removeBackground_file
+)
+from utils.generate_vector_ai import (
+    generate_zip_pre,
+    generate_pdf_pre,
+    clean_old_data_prepared
+)
 
 bulk_order_router = APIRouter()
 HARD_CODED_PASSWORD = "Drophouse23#"
@@ -24,6 +36,47 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 min_retry = 10
+
+@bulk_order_router.post("/bulk-download-prepared_orders")
+async def bulk_prepare(
+    background_tasks: BackgroundTasks,
+    order_ids: List[str],
+    db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
+    order_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+):
+    try:
+        clear_old = await clean_old_data_prepared()
+        mask_image_path = "./images/masks/elephant_mask.png"
+        result = await db_ops.get_student_order(order_ids)
+        if result:
+            for order in result:
+                if "images" in order:
+                    for image in order["images"]:
+                        size = image.split("_", 1)[0]
+                        zip_folder1 = f"../student_module_zip_download1/temp_student_products/{size}"
+                        if not os.path.exists(zip_folder1):
+                            os.makedirs(zip_folder1)
+                        image_path = f"{zip_folder1}/{image}.png"
+                        image_data = applyMask_and_removeBackground_file(
+                            order["images"][image]["img_path"],
+                            mask_image_path,
+                            order["images"][image]["img_id"],
+                            image_path
+                        )
+        zip_path = await generate_pdf_pre(background_tasks)
+        if not os.path.exists(zip_path):
+            return JSONResponse(
+                content=json_util.dumps({"error": f"File not found: {zip_path}"})
+            )
+
+        return FileResponse(zip_path, filename=f"prepared_orders.zip")
+
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+
 @bulk_order_router.post("/bulk-order")
 async def make_bulk_order(
     request: BulkOrderRequest,

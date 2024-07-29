@@ -2,7 +2,7 @@ from inspect import currentframe, getframeinfo
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from dotenv import load_dotenv
 from io import BytesIO
 from PIL import Image
@@ -25,9 +25,13 @@ if VECTORIZER_MODE == 'prod':
     VECTORIZER_MODE = 'production'
 
 zip_folder = "../student_module_zip_download"
+zip_folder1 = "../student_module_zip_download1"
 output_folder = "../student_module_zip_download/zip"
+output_folder1 = "../student_module_zip_download1/zip"
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
+if not os.path.exists(output_folder1):
+    os.makedirs(output_folder1)
 
 
 def convert_eps_to_base64(eps_path):
@@ -63,6 +67,31 @@ def convert_eps_to_base64(eps_path):
             },
         )
 
+async def clean_old_data_prepared():
+    try:
+        if not os.path.exists(zip_folder1):
+            os.makedirs(zip_folder1)
+
+        zip_file = f"{zip_folder1}/temp_student_products"
+        if os.path.exists(zip_file + ".zip"):
+            os.remove(zip_file + ".zip")
+
+        shutil.rmtree(zip_folder1)
+        if not os.path.exists(output_folder1):
+            os.makedirs(output_folder1)
+        return "removed"
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as error:
+        logger.error(f"Error in clean_old_data : {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
 
 async def clean_old_data():
     try:
@@ -70,7 +99,7 @@ async def clean_old_data():
             os.makedirs(zip_folder)
 
         zip_file = f"{zip_folder}/temp_student_products"
-        if os.path.exists(zip_file):
+        if os.path.exists(zip_file + ".zip"):
             os.remove(zip_file + ".zip")
 
         shutil.rmtree(zip_folder)
@@ -153,6 +182,26 @@ async def generate_zip(background_tasks):
             },
         )
 
+async def generate_zip_pre(background_tasks):
+    try:
+        zip_file = f"{zip_folder1}/temp_student_products"
+        result = shutil.make_archive(zip_file, "zip", output_folder1)
+
+        background_tasks.add_task(os.remove, zip_file + ".zip")
+        background_tasks.add_task(shutil.rmtree, zip_folder1)
+        return f"{zip_file}.zip"
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as error:
+        logger.error(f"Error in generate zip : {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
 
 async def generate_pdf(background_tasks):
     try:
@@ -195,6 +244,76 @@ async def generate_pdf(background_tasks):
         background_tasks.add_task(os.remove, pdf_file + ".pdf")
         background_tasks.add_task(shutil.rmtree, zip_folder)
         return f"{pdf_file}.pdf"
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as error:
+        logger.error(f"Error in generate pdf : {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
+
+async def generate_pdf_pre(background_tasks: BackgroundTasks):
+    try:
+        parent_folder = os.path.join(zip_folder1, "temp_student_products")
+        subfolders = [f.path for f in os.scandir(parent_folder) if f.is_dir()]
+        pdf_files = []
+
+        for folder_path in subfolders:
+            folder_name = os.path.basename(folder_path)
+            pdf_file = os.path.join(output_folder1, f"{folder_name}.pdf")
+            image_files = [
+                f for f in os.listdir(folder_path)
+                if f.lower().endswith(("png", "jpg", "jpeg", "eps"))
+            ]
+            image_files.sort()
+
+            if not image_files:
+                continue
+
+            c = canvas.Canvas(pdf_file, pagesize=letter)
+            page_width, page_height = letter
+
+            for image_file in image_files:
+                image_path = os.path.join(folder_path, image_file)
+                img = Image.open(image_path)
+                img_width, img_height = img.size
+
+                aspect_ratio = img_width / float(img_height)
+                if aspect_ratio > 1:
+                    new_width = min(page_width, img_width)
+                    new_height = new_width / aspect_ratio
+                else:
+                    new_height = min(page_height, img_height)
+                    new_width = new_height * aspect_ratio
+
+                x_offset = (page_width - new_width) / 2
+                y_offset = (page_height - new_height) / 2
+
+                c.drawImage(
+                    ImageReader(img), x_offset, y_offset, width=new_width, height=new_height
+                )
+
+                # Add filename label
+                c.setFont("Helvetica", 10)
+                c.drawString(x_offset, y_offset - 15, image_file)
+
+                c.showPage()
+
+            c.save()
+            pdf_files.append(pdf_file)
+
+        # Schedule cleanup tasks
+        zip_path = await generate_zip_pre(background_tasks)
+        for pdf_file in pdf_files:
+            background_tasks.add_task(os.remove, pdf_file)
+        background_tasks.add_task(shutil.rmtree, zip_folder)
+
+        return zip_path;
     except HTTPException as http_exc:
         raise http_exc
     except Exception as error:
