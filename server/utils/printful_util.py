@@ -32,6 +32,60 @@ def image_to_base64(image_path):
         encoded_string = base64.b64encode(img_file.read())
         return encoded_string.decode("utf-8")
 
+def applyMask_and_removeBackground_file(input_image_url, mask_path, img_id, image_path):
+    try:
+        shape_image = Image.open(mask_path).convert("RGBA")
+        if 'data:image' in input_image_url:
+            input_image_url = input_image_url.split(",")[1]
+            jpeg_data = base64.b64decode(input_image_url)
+            background_image = Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
+        else:
+            response = requests.get(input_image_url)
+            background_image = Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
+        
+        if not background_image:
+            raise Exception("Image not found")
+        
+        r, g, b, a = shape_image.split()
+        composite_image = Image.composite(shape_image, background_image, a)
+        composite_image.save(image_path)
+
+        image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        os.remove(image_path)
+        
+        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
+        
+        lower_green = np.array([82, 178, 38, 255], dtype=np.uint8)
+        upper_green = np.array([82, 178, 38, 255], dtype=np.uint8)
+        
+        mask = cv2.inRange(image_bgr, lower_green, upper_green)
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        
+        mask_inv = cv2.bitwise_not(mask)
+        foreground = cv2.bitwise_and(image, image, mask=mask_inv)
+        
+        b, g, r, a = cv2.split(foreground)
+        alpha_channel = cv2.bitwise_and(a, a, mask=mask_inv)
+        foreground_with_alpha = cv2.merge([b, g, r, alpha_channel])
+        
+        cv2.imwrite(image_path, foreground_with_alpha)
+        with Image.open(image_path) as img:
+            img.save(image_path, dpi=(200, 200))
+
+        return image_path
+    except Exception as error:
+        logger.error(f"Error in printful_utils : {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
 
 def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
     try:
