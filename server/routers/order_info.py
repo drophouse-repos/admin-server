@@ -32,7 +32,7 @@ class PlaceOrderDataRequest(BaseModel):
 
 
 async def place_order(
-    request: PlaceOrderDataRequest, user_id: str, usertype:str, 
+    request: PlaceOrderDataRequest, user_id: str, 
     org_id:str,
     org_name:str,
     db_ops: BaseDatabaseOperation = OrderOperations,
@@ -44,7 +44,6 @@ async def place_order(
         timestamp = datetime.datetime.utcnow()
         order_info = OrderItem(
             user_id=user_id,
-            user_type=usertype,
             org_id = org_id,
             org_name = org_name,
             order_id=order_id,

@@ -56,7 +56,6 @@ class UserOperations(BaseDatabaseOperation):
                 {
                     '$project': {
                         'user_id': 1,
-                        'user_type': 1,
                         'order_id': 1,
                         'item': {
                             '$map': {
@@ -274,36 +273,6 @@ class UserOperations(BaseDatabaseOperation):
                 logger.critical(f"Error in bulk updating order statuses: {e}")
                 return False
             
-
-    async def check_student_order(self, user_id: str):
-        try:
-            result = await self.db.users.find_one(
-                {
-                    "user_id": user_id,
-                    "orders": {
-                        "$elemMatch": {
-                            "user_type": "student",
-                            "status": {
-                                "$in": [
-                                    "pending",
-                                    "verified",
-                                    "shipped",
-                                    "delivering",
-                                    "delivered",
-                                ]
-                            },
-                        }
-                    },
-                }
-            )
-            if result:
-                return True
-            else:
-                return False
-        except Exception as e:
-            logger.critical(f"Error checking student order status: {e}")
-            return False
-
     async def update_order_status(self, user_id: str, order_id: str, new_status: str):
         try:
             user = await self.db.users.find_one(
