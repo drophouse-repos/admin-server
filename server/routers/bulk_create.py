@@ -86,8 +86,11 @@ async def make_bulk_order(
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
     try:
-        generated_data = await generate_prompts(request.prompts, request.numImages)
-        response_data = await generate_images(generated_data)
+        if not request.is_prompt:
+            generated_data = await generate_prompts(request.prompts, request.numImages)
+            response_data = await generate_images(generated_data)
+        else:
+            response_data = await generate_images(request.prompts)
 
         retry = 0
         user_data = request.file
