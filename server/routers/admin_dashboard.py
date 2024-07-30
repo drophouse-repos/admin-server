@@ -81,14 +81,20 @@ async def get_admin_orders():
         )
 
 
+class OrderIdsRequest(BaseModel):
+    order_ids: List[str]
+
 @admin_dashboard_router.post("/get_toggled_url")
 async def get_toggled_url(
-    order_id : str,
+    request: OrderIdsRequest,
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
 ):
     try:
-        result = await db_ops.get_toggled_url(order_id)
-        return JSONResponse(content=json_util.dumps(result))
+        results = []
+        for order_id in request.order_ids:
+            result = await db_ops.get_toggled_url(order_id)
+            results.append(result)
+        return JSONResponse(content=json_util.dumps(results))
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
@@ -100,7 +106,7 @@ async def get_toggled_url(
                 "currentFrame": getframeinfo(currentframe()),
                 "detail": str(traceback.format_exc()),
             },
-        )  
+        )
 
 @admin_dashboard_router.post("/admin_orders")
 async def get_admin_orders(
@@ -188,6 +194,64 @@ async def update_order_status(
                 "detail": str(traceback.format_exc()),
             },
         )
+
+class OrderUpdate(BaseModel):
+    email_data: EmailRequest
+    user_id: str
+    order_id: str
+    new_status: str
+
+@admin_dashboard_router.post("/update_bulk_order_status")
+async def update_bulk_order_status(
+    updates: List[OrderUpdate] = Body(...),
+    db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
+):
+    try:
+        # Prepare a list of bulk update requests
+        bulk_updates = [
+            {"user_id": update.user_id, "order_id": update.order_id, "new_status": update.new_status}
+            for update in updates
+        ]
+
+        # Perform the bulk update
+        result = await db_ops.bulk_update_orders(bulk_updates)
+
+        if result:
+            # Send emails for each update if status is "cancelled"
+            for update in updates:
+                if update.new_status == "cancelled":
+                    email_service.send_email(
+                        from_email="bucket@drophouse.art",
+                        to_email=update.email_data.to_mail,
+                        subject=update.email_data.subject,
+                        name=update.user_id,
+                        email=update.email_data.to_mail,
+                        message_body=update.email_data.content,
+                    )
+            return JSONResponse(
+                content=json_util.dumps({"message": "Orders updated successfully"})
+            )
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "message": "No orders updated",
+                    "currentFrame": getframeinfo(currentframe()),
+                },
+            )
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error in update_order_status: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
+    
 
 @admin_dashboard_router.post("/print_order")
 async def print_order(
