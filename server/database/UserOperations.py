@@ -3,6 +3,7 @@ import logging
 from database.BASE import BaseDatabaseOperation
 from models.OrderItemModel import OrderItem
 from aws_utils import generate_presigned_url
+from pymongo import UpdateOne
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ class UserOperations(BaseDatabaseOperation):
                                     'color': '$$i.color',
                                     'img_id': '$$i.img_id',
                                     'prompt': '$$i.prompt',
+                                    'price': '$$i.price',
                                     'toggled': {
                                         '$cond': {
                                             'if': {'$eq': ['$$i.toggled', False]},
@@ -231,6 +233,47 @@ class UserOperations(BaseDatabaseOperation):
                 f"Error in updating order status for user {user_id} with order ID {order_id}: {e}"
             )
             return False
+            
+    async def bulk_update_orders(self, user_order_updates):
+            try:
+                user_updates = []
+                order_updates = []
+
+                for update in user_order_updates:
+                    user_id = update["user_id"]
+                    order_id = update["order_id"]
+                    new_status = update["new_status"]
+
+                    user_updates.append(
+                        UpdateOne(
+                            {"user_id": user_id, "orders.order_id": order_id},
+                            {"$set": {"orders.$.status": new_status}}
+                        )
+                    )
+
+                    order_updates.append(
+                        UpdateOne(
+                            {"order_id": order_id},
+                            {"$set": {"status": new_status}}
+                        )
+                    )
+                user_update_result = await self.db.users.bulk_write(user_updates)
+                orders_update_result = await self.db.orders.bulk_write(order_updates)
+
+                if (
+                    user_update_result.modified_count > 0
+                    and orders_update_result.modified_count > 0
+                ):
+                    logger.info("Bulk order status update successful")
+                    return True
+                else:
+                    logger.warning("No changes made during bulk order status update")
+                    return False
+
+            except Exception as e:
+                logger.critical(f"Error in bulk updating order statuses: {e}")
+                return False
+            
 
     async def check_student_order(self, user_id: str):
         try:

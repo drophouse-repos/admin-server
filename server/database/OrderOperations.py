@@ -102,7 +102,7 @@ class OrderOperations(BaseDatabaseOperation):
         try:
             pipeline = [
                 {"$match": {"order_id": order_id}},
-                {"$project": {"item.toggled":1}}
+                {"$project": {"item.toggled":1,"order_id": 1}}
             ]
             async for doc in self.db.orders.aggregate(pipeline):
                 return doc
