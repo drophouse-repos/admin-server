@@ -63,6 +63,12 @@ async def bulk_prepare(
                             order["images"][image]["img_id"],
                             image_path
                         )
+                        
+                        is_updated = await db_ops.update(order["user_id"], order["order_id"], "shipped")
+                        if is_updated:
+                            logger.info(f"Status updated : {image}")
+                        else:
+                            logger.error(f"Not able to update status, Error: {image}")
         zip_path = await generate_pdf_pre(background_tasks)
         if not os.path.exists(zip_path):
             return JSONResponse(

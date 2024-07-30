@@ -306,10 +306,17 @@ class UserOperations(BaseDatabaseOperation):
 
     async def update_order_status(self, user_id: str, order_id: str, new_status: str):
         try:
-            user_update_result = await self.db.users.update_one(
-                {"user_id": user_id, "orders.order_id": order_id},
-                {"$set": {"orders.$.status": new_status}},
+            user = await self.db.users.find_one(
+                {"user_id": user_id, "orders.order_id": order_id}
             )
+
+            if user:
+                user_update_result = await self.db.users.update_one(
+                    {"user_id": user_id, "orders.order_id": order_id},
+                    {"$set": {"orders.$.status": new_status}},
+                )
+            else:
+                user_update_result = None
 
             orders_update_result = await self.db.orders.update_one(
                 {"order_id": order_id},
@@ -317,7 +324,7 @@ class UserOperations(BaseDatabaseOperation):
             )
 
             return (
-                user_update_result.modified_count > 0
+                (user_update_result is None or user_update_result.modified_count > 0)
                 and orders_update_result.modified_count > 0
             )
         except Exception as e:
