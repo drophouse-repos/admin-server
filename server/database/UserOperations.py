@@ -13,7 +13,6 @@ class UserOperations(BaseDatabaseOperation):
 
     async def get(self, user_id=None) -> list:
         try:
-            # Fetch orders, either for a specific user or all orders if user_id is None
             query = {} if user_id is None else {"user_id": user_id}
             orders = await self.db.orders.find(query).to_list(length=None)
 
@@ -200,55 +199,28 @@ class UserOperations(BaseDatabaseOperation):
 
     async def update(self, user_id: str, order_id: str, new_status: str):
         try:
-            user_update_query = {"user_id": user_id, "orders.order_id": order_id}
-            user_update_fields = {"$set": {"orders.$.status": new_status}}
-
-            user_update_result = await self.db.users.update_one(
-                user_update_query, user_update_fields
-            )
-
-            # Update the 'orders' collection directly
             orders_update_result = await self.db.orders.update_one(
                 {"order_id": order_id}, {"$set": {"status": new_status}}
             )
 
-            # Check if both updates were successful
-            if (
-                user_update_result.modified_count > 0
-                and orders_update_result.modified_count > 0
-            ):
-                logger.info(
-                    f"Order status updated successfully for order ID {order_id}"
-                )
+            if orders_update_result.modified_count > 0:
+                logger.info(f"Order status updated successfully for order ID {order_id}")
                 return True
             else:
-                logger.warning(
-                    f"No changes made to the order status for order ID {order_id}"
-                )
+                logger.warning(f"No changes made to the order status for order ID {order_id}")
                 return False
 
         except Exception as e:
-            logger.critical(
-                f"Error in updating order status for user {user_id} with order ID {order_id}: {e}"
-            )
+            logger.critical(f"Error in updating order status for user {user_id} with order ID {order_id}: {e}")
             return False
             
     async def bulk_update_orders(self, user_order_updates):
             try:
-                user_updates = []
                 order_updates = []
-
                 for update in user_order_updates:
                     user_id = update["user_id"]
                     order_id = update["order_id"]
                     new_status = update["new_status"]
-
-                    user_updates.append(
-                        UpdateOne(
-                            {"user_id": user_id, "orders.order_id": order_id},
-                            {"$set": {"orders.$.status": new_status}}
-                        )
-                    )
 
                     order_updates.append(
                         UpdateOne(
@@ -256,13 +228,8 @@ class UserOperations(BaseDatabaseOperation):
                             {"$set": {"status": new_status}}
                         )
                     )
-                user_update_result = await self.db.users.bulk_write(user_updates)
                 orders_update_result = await self.db.orders.bulk_write(order_updates)
-
-                if (
-                    user_update_result.modified_count > 0
-                    and orders_update_result.modified_count > 0
-                ):
+                if orders_update_result.modified_count > 0:
                     logger.info("Bulk order status update successful")
                     return True
                 else:
@@ -275,20 +242,11 @@ class UserOperations(BaseDatabaseOperation):
             
     async def update_order_status(self, user_id: str, order_id: str, new_status: str):
         try:
-            user_update_result = await self.db.users.update_one(
-                {"user_id": user_id, "orders.order_id": order_id},
-                {"$set": {"orders.$.status": new_status}},
-            )
-
             orders_update_result = await self.db.orders.update_one(
                 {"order_id": order_id},
                 {"$set": {"status": new_status}},
             )
-
-            return (
-                user_update_result.modified_count > 0
-                and orders_update_result.modified_count > 0
-            )
+            return orders_update_result.modified_count > 0
         except Exception as e:
             logger.critical(f"Error updating order status: {e}")
             return False
