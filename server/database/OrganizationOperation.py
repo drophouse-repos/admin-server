@@ -54,3 +54,9 @@ class OrganizationOperation(BaseDatabaseOperation):
         except Exception as e:
             logger.error(f"Error retrieving organization with ID {org_id}: {e}")
             return None
+    
+    async def get_organization_data(self,org_id: int):
+        organization = await self.db.organizations.find_one({"org_id": org_id})  # Replace 'organizations' with your collection name
+        if not organization:
+            logger.error(f"Error retrieving organization with ID {org_id}")
+        return organization
