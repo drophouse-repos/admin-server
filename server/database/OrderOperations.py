@@ -13,14 +13,9 @@ class OrderOperations(BaseDatabaseOperation):
     async def create(self, user_id: str, order_info: OrderItem) -> bool:
         try:
             order_data = order_info.model_dump()
-            user_update_result = await self.db.users.update_one(
-                {"user_id": user_id}, {"$push": {"orders": order_data}}
-            )
-
             orders_insert_result = await self.db.orders.insert_one(order_data)
             return (
-                user_update_result.modified_count > 0
-                and orders_insert_result.inserted_id is not None
+                orders_insert_result.inserted_id is not None
             )
         except Exception as e:
             logger.critical(f"Error adding to order: {e}")
@@ -50,15 +45,11 @@ class OrderOperations(BaseDatabaseOperation):
     async def remove(self, user_id: str, order_info: OrderItem) -> bool:
         try:
             order_id = order_info.order_id
-            user_update_result = await self.db.users.update_one(
-                {"user_id": user_id}, {"$pull": {"orders": {"_id": order_id}}}
-            )
             orders_delete_result = await self.db.orders.delete_one(
                 {"order_id": order_id}
             )
             return (
-                user_update_result.modified_count > 0
-                and orders_delete_result.deleted_count > 0
+                orders_delete_result.deleted_count > 0
             )
         except Exception as e:
             logger.critical(f"Error in removing order: {e}")
@@ -69,17 +60,11 @@ class OrderOperations(BaseDatabaseOperation):
             updated_order_data = updated_order_info.model_dump()
             order_id = updated_order_info.order_id
 
-            user_update_result = await self.db.users.update_one(
-                {"user_id": user_id, "orders.order_id": order_id},
-                {"$set": {"orders.$": updated_order_data}},
-            )
-
             orders_update_result = await self.db.orders.update_one(
                 {"order_id": order_id}, {"$set": updated_order_data}
             )
             return (
-                user_update_result.modified_count > 0
-                and orders_update_result.modified_count > 0
+                orders_update_result.modified_count > 0
             )
         except Exception as e:
             logger.critical(f"Error in updating order: {e}")
@@ -111,16 +96,14 @@ class OrderOperations(BaseDatabaseOperation):
             return []
     async def get(self, user_id: str) -> list:
         try:
-            user = await self.db.users.find_one({"user_id": user_id}, {"orders": 1})
-            if user and "orders" in user:
-                for order in user["orders"]:
-                    for item in order["item"]:
-                        img_id = item["img_id"]
-                        thumbnail_img_id = "t_" + img_id
-                        item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
-                return user["orders"]
-            else:
-                return []
+            orders = await self.db.orders.find({"user_id": user_id}, {'_id':0}).to_list(length=None)
+            for idx in range(len(orders)):
+                order = orders[idx]
+                for item in order["item"]:
+                    img_id = item["img_id"]
+                    thumbnail_img_id = "t_" + img_id
+                    item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
+            return orders
         except Exception as e:
             logger.error(f"Error retrieving orders: {e}")
             return []
@@ -137,26 +120,12 @@ class OrderOperations(BaseDatabaseOperation):
         
     async def update_order_status(self, user_id: str, order_id: str, new_status: str):
         try:
-            user = await self.db.users.find_one(
-                {"user_id": user_id, "orders.order_id": order_id}
-            )
-
-            if user:
-                user_update_result = await self.db.users.update_one(
-                    {"user_id": user_id, "orders.order_id": order_id},
-                    {"$set": {"orders.$.status": new_status}},
-                )
-            else:
-                user_update_result = None
-
             orders_update_result = await self.db.orders.update_one(
                 {"order_id": order_id},
                 {"$set": {"status": new_status}},
             )
-
             return (
-                (user_update_result is None or user_update_result.modified_count > 0)
-                and orders_update_result.modified_count > 0
+                orders_update_result.modified_count > 0
             )
         except Exception as e:
             logger.critical(f"Error updating order status: {e}")
@@ -169,12 +138,6 @@ class OrderOperations(BaseDatabaseOperation):
                 "timestamp": {"$lt": one_hour_ago},
                 "status": "unpaid"
             })
-            user_update_result = await self.db.users.update_one(
-                {"user_id": user_id}, {"$pull": {"orders":{
-                "timestamp": {"$lt": one_hour_ago},
-                "status": "unpaid"
-                }}}
-            ) 
             return result
         except Exception as e:
             logger.critical(f"Error updating order status: {e}")
