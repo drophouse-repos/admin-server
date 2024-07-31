@@ -63,6 +63,12 @@ async def bulk_prepare(
                             order["images"][image]["img_id"],
                             image_path
                         )
+                        
+                        is_updated = await db_ops.update(order["user_id"], order["order_id"], "shipped")
+                        if is_updated:
+                            logger.info(f"Status updated : {image}")
+                        else:
+                            logger.error(f"Not able to update status, Error: {image}")
         zip_path = await generate_pdf_pre(background_tasks)
         if not os.path.exists(zip_path):
             return JSONResponse(
@@ -86,8 +92,11 @@ async def make_bulk_order(
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
     try:
-        generated_data = await generate_prompts(request.prompts, request.numImages)
-        response_data = await generate_images(generated_data)
+        if not request.is_prompt:
+            generated_data = await generate_prompts(request.prompts, request.numImages)
+            response_data = await generate_images(generated_data)
+        else:
+            response_data = await generate_images(request.prompts)
 
         retry = 0
         user_data = request.file
