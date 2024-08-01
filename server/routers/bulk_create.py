@@ -99,7 +99,14 @@ def percentage_to_pixels(percentage, total_pixels):
 
 async def get_selected_preview_image(pattern_src_url, default_product_base64, Dim_left, Dim_top, Dim_width, Dim_height):
     try:
-        total_pixels = 512
+        # logger.info(f"Calculated Coordinates - x: {tmp_x}, y: {tmp_y}, width: {tmp_width}, height: {tmp_height}")
+        default_product_base64_new = correct_base64_padding(strip_base64_prefix(default_product_base64))
+        cloth_img_data = base64.b64decode(default_product_base64_new)
+        pattern_img_response = requests.get(pattern_src_url)
+        pattern_img_response.raise_for_status()
+        cloth_img = Image.open(BytesIO(cloth_img_data)).convert("RGBA")
+        pattern_img = Image.open(BytesIO(pattern_img_response.content)).convert("RGBA")
+        total_pixels = cloth_img.height
         x = percentage_to_pixels(Dim_left, total_pixels)
         y = percentage_to_pixels(Dim_top, total_pixels)
         width = percentage_to_pixels(Dim_width, total_pixels)
@@ -108,14 +115,7 @@ async def get_selected_preview_image(pattern_src_url, default_product_base64, Di
         tmp_y = round(y)
         tmp_width = round(width)
         tmp_height = round(height)
-        # logger.info(f"Calculated Coordinates - x: {tmp_x}, y: {tmp_y}, width: {tmp_width}, height: {tmp_height}")
-        default_product_base64_new = correct_base64_padding(strip_base64_prefix(default_product_base64))
-        cloth_img_data = base64.b64decode(default_product_base64_new)
-        pattern_img_response = requests.get(pattern_src_url)
-        pattern_img_response.raise_for_status()
-        cloth_img = Image.open(BytesIO(cloth_img_data)).convert("RGBA")
-        pattern_img = Image.open(BytesIO(pattern_img_response.content)).convert("RGBA")
-        logger.info(f"Cloth image size: {cloth_img.size}, Pattern image size: {pattern_img.size}")
+        logger.info(f"Cloth image size: {cloth_img.size}, Pattern image size: {pattern_img.size}, Cloth image height: {cloth_img.height}")
         pattern_img = pattern_img.resize((tmp_height, tmp_width))  
         output_canvas = Image.new("RGBA", (total_pixels, total_pixels), (255, 255, 255, 0))
         output_canvas.paste(pattern_img, (tmp_x, tmp_y), pattern_img)
@@ -170,44 +170,49 @@ async def make_bulk_order(
 
             org_id = user_data[idx]['org_id']
             organization = await org_db_ops.get_organization_data(org_id)
-            default_product = next(
-                (
-                    product for product in organization['products']
-                    if product['name'] == user_data[idx]['apparel'] and
-                    isinstance(product['colors'], dict) and
-                    any(color['name'] == user_data[idx]['color'] for color in product['colors'].values())
-                ),
-                None
-            )
-            if not default_product:
-                logger.error(f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
-                raise HTTPException(status_code=404, detail=f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
-            color_asset = next(
-                (
-                    color['asset']['front'] for color in default_product['colors'].values()
-                    if color['name'] == user_data[idx]['color']
-                ),
-                None
-            )
-            if not color_asset:
-                raise HTTPException(status_code=404, detail=f"Asset not found for color: {user_data[idx]['color']}")
-            # print(color_asset)
-            Dim_left = default_product['dimensions']['left']
-            Dim_top = default_product['dimensions']['top']
-            Dim_width = default_product['dimensions']['width']
-            Dim_height = default_product['dimensions']['height']
-            thumbnail = await get_selected_preview_image(
-                pattern_src_url= generate_presigned_url(
-                            imageresponse[1], "browse-image-v2"
-                        ),
-                default_product_base64=color_asset,
-                Dim_left=Dim_left,
-                Dim_top=Dim_top,
-                Dim_width=Dim_width,
-                Dim_height=Dim_height,
-            )
-            thumbnail_img_id = "t_" + imageresponse[1]
-            tasks.append(asyncio.to_thread(processAndSaveImage, thumbnail, thumbnail_img_id, "thumbnails-cart"))
+            if not organization:
+                thumbnail = 'null'
+            else:
+                default_product = next(
+                    (
+                        product for product in organization['products']
+                        if product['name'] == user_data[idx]['apparel'] and
+                        isinstance(product['colors'], dict) and
+                        any(color['name'] == user_data[idx]['color'] for color in product['colors'].values())
+                    ),
+                    None
+                )
+                if not default_product:
+                    thumbnail = 'null'
+                    logger.error(f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                    # raise HTTPException(status_code=404, detail=f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                else:
+                    color_asset = next(
+                    (
+                        color['asset']['front'] for color in default_product['colors'].values()
+                        if color['name'] == user_data[idx]['color']
+                    ),
+                    None
+                    )
+                    if not color_asset:
+                        thumbnail = 'null'
+                        logger.error(f"Choosen color not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                        # raise HTTPException(status_code=404, detail=f"Asset not found for color: {user_data[idx]['color']}")
+                    else:
+                        Dim_left = default_product['dimensions']['left']
+                        Dim_top = default_product['dimensions']['top']
+                        Dim_width = default_product['dimensions']['width']
+                        Dim_height = default_product['dimensions']['height']
+                        thumbnail = await get_selected_preview_image(
+                            pattern_src_url= generate_presigned_url(imageresponse[1], "browse-image-v2"),
+                            default_product_base64=color_asset,
+                            Dim_left=Dim_left,
+                            Dim_top=Dim_top,
+                            Dim_width=Dim_width,
+                            Dim_height=Dim_height
+                        )
+                        thumbnail_img_id = "t_" + imageresponse[1]
+                        tasks.append(asyncio.to_thread(processAndSaveImage, thumbnail, thumbnail_img_id, "thumbnails-cart"))
 
 
             order_model = OrderItem(
