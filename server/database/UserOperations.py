@@ -125,6 +125,7 @@ class UserOperations(BaseDatabaseOperation):
             }  # Create a dictionary of users by user_id
 
             verfied_orders = []
+            prevent_duplicate = 0
             for order in orders:
                 if "status" in order and order["status"] == "verified" or order["status"] == "prepared":
                     fname=''
@@ -132,17 +133,16 @@ class UserOperations(BaseDatabaseOperation):
 
                     user_data = user_dict.get(order["user_id"], {})
                     if 'first_name' in user_data and 'last_name' in user_data:
-                        print('picking name from user_data')
                         fname = user_data['first_name']
                         lname = user_data['last_name']
                     if 'shipping_info' in order and 'firstName' in order['shipping_info'] and 'lastName' in order['shipping_info']:
-                        print('picking name from shipping_info')
                         fname = order['shipping_info']['firstName']
                         lname = order['shipping_info']['lastName']
 
                     if fname == '' and lname == '':
                         continue
 
+                    prevent_duplicate = prevent_duplicate + 1
                     order["images"] = {}
                     if "item" in order:
                         for item in order["item"]:
@@ -159,6 +159,8 @@ class UserOperations(BaseDatabaseOperation):
                                 + fname
                                 + "_"
                                 + lname
+                                + "_"
+                                + str(prevent_duplicate)
                             ] = {}
                             order["images"][
                                 item["size"]
@@ -166,6 +168,8 @@ class UserOperations(BaseDatabaseOperation):
                                 + fname
                                 + "_"
                                 + lname
+                                + "_"
+                                + str(prevent_duplicate)
                             ]["img_path"] = item["img_url"]
                             order["images"][
                                 item["size"]
@@ -173,6 +177,8 @@ class UserOperations(BaseDatabaseOperation):
                                 + fname
                                 + "_"
                                 + lname
+                                + "_"
+                                + str(prevent_duplicate)
                             ]["img_id"] = item["img_id"]
                     verfied_orders.append(order)
             return verfied_orders

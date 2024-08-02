@@ -8,9 +8,12 @@ from io import BytesIO
 from PIL import Image
 import traceback
 import requests
+import aiofiles
 import logging
+import asyncio
 import shutil
 import base64
+import httpx
 import os
 
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +35,6 @@ if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 if not os.path.exists(output_folder1):
     os.makedirs(output_folder1)
-
 
 def convert_eps_to_base64(eps_path):
     try:
@@ -98,19 +100,17 @@ async def clean_old_data():
         if not os.path.exists(zip_folder):
             os.makedirs(zip_folder)
 
-        zip_file = f"{zip_folder}/temp_student_products"
-        if os.path.exists(zip_file + ".zip"):
-            os.remove(zip_file + ".zip")
+        zip_file = f"{zip_folder}/temp_student_products.zip"
+        if os.path.exists(zip_file):
+            os.remove(zip_file)
 
-        shutil.rmtree(zip_folder)
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+        if os.path.exists(output_folder):
+            shutil.rmtree(output_folder)
+        os.makedirs(output_folder)
 
         return "removed"
-    except HTTPException as http_exc:
-        raise http_exc
     except Exception as error:
-        logger.error(f"Error in clean_old_data : {error}")
+        logger.error(f"Error in clean_old_data: {error}")
         raise HTTPException(
             status_code=500,
             detail={
@@ -120,59 +120,73 @@ async def clean_old_data():
             },
         )
 
+async def generate_vector_image(image_url, file_name, mode):
+    retry_attempts = 3
+    timeout_seconds = 60  # Increase timeout in seconds
 
-def generate_vector_image(image_url, file_name, mode):
-    try:
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+    for attempt in range(retry_attempts):
+        try:
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
 
-        response = requests.post(
-            "https://vectorizer.ai/api/v1/vectorize",
-            data={
-                "mode": mode,
-                "image.url": image_url,
-                "output.file_format": "eps",
-            },
-            auth=(VECTORIZER_TOKEN, VECTORIZER_SECRET),
-        )
-        size = file_name.split("_", 1)[0]
-        if not os.path.exists(f"{output_folder}/{size}"):
-            os.makedirs(f"{output_folder}/{size}")
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://vectorizer.ai/api/v1/vectorize",
+                    data={
+                        "mode": mode,
+                        "image.url": image_url,
+                        "output.file_format": "eps",
+                    },
+                    auth=(VECTORIZER_TOKEN, VECTORIZER_SECRET),
+                    timeout=timeout_seconds,
+                )
 
-        if response.status_code == requests.codes.ok:
-            with open(f"{output_folder}/{size}/{file_name}.eps", "wb") as out:
-                out.write(response.content)
+                size = file_name.split("_", 1)[0]
+                if not os.path.exists(f"{output_folder}/{size}"):
+                    os.makedirs(f"{output_folder}/{size}")
 
-            return f"{output_folder}/{size}/{file_name}.eps"
-        else:
-            logger.error("Error:", response.status_code, response.text)
-            return False
-    except HTTPException as http_exc:
-        raise http_exc
-    except Exception as error:
-        logger.error(f"Error in generate_vector_image : {error}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "message": "Internal Server Error",
-                "currentFrame": getframeinfo(currentframe()),
-                "detail": str(traceback.format_exc()),
-            },
-        )
+                if response.status_code == httpx.codes.OK:
+                    file_path = f"{output_folder}/{size}/{file_name}.eps"
+                    async with aiofiles.open(file_path, "wb") as out_file:
+                        await out_file.write(response.content)
+                    return file_path
+                else:
+                    logger.error(f"Error: {response.status_code} {response.text}")
+                    return False
 
+        except (httpx.RequestError, httpx.TimeoutException) as exc:
+            logger.error(f"Attempt {attempt + 1} failed: {exc}")
+            if attempt == retry_attempts - 1:
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "message": "Vectorization request failed after multiple attempts",
+                        "currentFrame": getframeinfo(currentframe()),
+                        "detail": str(traceback.format_exc()),
+                    },
+                )
+        except Exception as error:
+            logger.error(f"Error in generate_vector_image: {error}")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "Internal Server Error",
+                    "currentFrame": getframeinfo(currentframe()),
+                    "detail": str(traceback.format_exc()),
+                },
+            )
 
 async def generate_zip(background_tasks):
     try:
         zip_file = f"{zip_folder}/temp_student_products"
-        result = shutil.make_archive(zip_file, "zip", output_folder)
+        shutil.make_archive(zip_file, "zip", output_folder)
 
+        # Schedule clean-up tasks
         background_tasks.add_task(os.remove, zip_file + ".zip")
         background_tasks.add_task(shutil.rmtree, zip_folder)
         return f"{zip_file}.zip"
-    except HTTPException as http_exc:
-        raise http_exc
     except Exception as error:
-        logger.error(f"Error in generate zip : {error}")
+        logger.error(f"Error in generate_zip: {error}")
         raise HTTPException(
             status_code=500,
             detail={

@@ -1,6 +1,7 @@
 import os
 import logging
 import requests
+import asyncio
 import traceback
 from db import get_db_ops
 from bson import json_util
@@ -47,7 +48,7 @@ class DeleteRequest(BaseModel):
 class DownloadRequest(BaseModel):
     password: str
     mode: str
-    order_ids: List[str]
+    order_ids: list[str]
 
 class EmailRequest(BaseModel):
     to_mail: str
@@ -351,7 +352,7 @@ async def print_order(
                 if item.toggled
                 else generate_presigned_url(item.img_id, "browse-image-v2")
             )
-            image_data = applyMask_and_removeBackground(
+            image_data = await applyMask_and_removeBackground(
                 image_url, mask_image_path, item.img_id
             )
 
@@ -418,11 +419,12 @@ async def print_order(
         print(order_data)
         endpoint = "/orders"
         response = printful_request(endpoint, method="POST", data=order_data)
-        is_updated = await db_ops.update(order_info["user_id"], order_info["order_id"], "prepared")
-        if is_updated:
-            logger.info(f"Status updated /printful: {image}")
-        else:
-            logger.error(f"Not able to update status /printful, Error: {image}")
+        if response:
+            is_updated = await db_ops.update(order_info.user_id, order_info.order_id, "prepared")
+            if is_updated:
+                logger.info(f"Status updated /printful order_id: {order_info.order_id}")
+            else:
+                logger.error(f"Not able to update status /printful order_id, Error: {order_info.order_id}")
 
         return JSONResponse(
             content=json_util.dumps({"message": "Order added to printful"})
@@ -466,46 +468,30 @@ async def download_student_verified_orders(
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
     try:
-        clear_old = await clean_old_data()
+        await clean_old_data()
         mask_image_path = "./images/masks/elephant_mask.png"
         result = await db_ops.get_student_order(request.order_ids)
         if result:
+            tasks = []
             for order in result:
                 if "images" in order:
                     for image in order["images"]:
-                        image_data = applyMask_and_removeBackground(
-                            order["images"][image]["img_path"],
-                            mask_image_path,
-                            order["images"][image]["img_id"],
-                        )
-                        result = generate_vector_image(image_data, image, request.mode)
-                        if result:
-                            logger.info(f"Vector Generated : {image}")
-                            if request.mode == 'production':
-                                is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
-                                if is_updated:
-                                    logger.info(f"Status updated : {image}")
-                                else:
-                                    logger.error(f"Not able to update status, Error: {image}")
-                        else:
-                            logger.error(f"Vector Error: {image}")
+                        tasks.append(process_image(image, mask_image_path, order, request.mode, db_ops))
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-            zip_path = await generate_zip(background_tasks)
+            zip_path = await generate_zip(background_tasks)  # Generate folder as zip and download
             if not os.path.exists(zip_path):
                 return JSONResponse(
-                    content=json_util.dumps({"error": f"File not found: {zip_path}"})
+                    content={"error": f"File not found: {zip_path}"}
                 )
 
-            return FileResponse(zip_path, filename=f"student_products.zip")
+            return FileResponse(zip_path, filename="student_products.zip")
         else:
-            result = []
-            return JSONResponse(content=json_util.dumps(result))
+            return JSONResponse(content=[])
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
-        logger.error(
-            f"Error in download_student_verified_orders: {str(e)}", exc_info=True
-        )
+        logger.error(f"Error in download_student_verified_orders: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={
@@ -514,3 +500,26 @@ async def download_student_verified_orders(
                 "detail": str(traceback.format_exc()),
             },
         )
+
+semaphore = asyncio.Semaphore(100)  # Limit to 100 concurrent tasks
+async def process_image(image, mask_image_path, order, mode, db_ops):
+    async with semaphore:
+        try:
+            image_data = await applyMask_and_removeBackground(
+                order["images"][image]["img_path"],
+                mask_image_path,
+                order["images"][image]["img_id"],
+            )
+            result = await generate_vector_image(image_data, image, mode)
+            if result:
+                logger.info(f"Vector Generated: {image}")
+                if mode == 'production':  # Update order status
+                    is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
+                    if is_updated:
+                        logger.info(f"Status updated: {image}")
+                    else:
+                        logger.error(f"Not able to update status, Error: {image}")
+            else:
+                logger.error(f"Vector Error: {image}")
+        except Exception as e:
+            logger.error(f"Error processing image {image}: {str(e)}", exc_info=True)

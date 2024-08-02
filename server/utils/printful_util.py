@@ -11,6 +11,7 @@ import requests
 import logging
 import base64
 import boto3
+import httpx
 import uuid
 import cv2
 import os
@@ -31,6 +32,68 @@ def image_to_base64(image_path):
     with open(image_path, "rb") as img_file:
         encoded_string = base64.b64encode(img_file.read())
         return encoded_string.decode("utf-8")
+
+async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
+    try:
+        shape_image = Image.open(mask_path).convert("RGBA")
+
+        unique_id = uuid.uuid4()
+        image_path = os.path.join(process_folder, f'{unique_id}.png')
+
+        if 'data:image' in input_image_url:
+            input_image_url = input_image_url.split(",")[1]
+            jpeg_data = base64.b64decode(input_image_url)
+            background_image = Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
+        else:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(input_image_url)
+                background_image = Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
+
+        if not background_image:
+            raise Exception("Image not found")
+
+        r, g, b, a = shape_image.split()
+        composite_image = Image.composite(shape_image, background_image, a)
+        composite_image.save(image_path)
+
+        image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        os.remove(image_path)
+
+        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
+        lower_green = np.array([82, 178, 38, 255], dtype=np.uint8)
+        upper_green = np.array([82, 178, 38, 255], dtype=np.uint8)
+
+        mask = cv2.inRange(image_bgr, lower_green, upper_green)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+        mask_inv = cv2.bitwise_not(mask)
+        foreground = cv2.bitwise_and(image, image, mask=mask_inv)
+        b, g, r, a = cv2.split(foreground)
+        alpha_channel = cv2.bitwise_and(a, a, mask=mask_inv)
+        foreground_with_alpha = cv2.merge([b, g, r, alpha_channel])
+
+        cv2.imwrite(image_path, foreground_with_alpha)
+
+        with Image.open(image_path) as img:
+            img.save(image_path, dpi=(200, 200))
+
+        base64_string = image_to_base64(image_path)
+        os.remove(image_path)
+
+        url = processAndSaveImage(base64_string, img_id)
+        return url
+    except Exception as error:
+        logger.error(f"Error in applyMask_and_removeBackground: {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
 
 def applyMask_and_removeBackground_file(input_image_url, mask_path, img_id, image_path):
     try:
@@ -86,86 +149,6 @@ def applyMask_and_removeBackground_file(input_image_url, mask_path, img_id, imag
                 "detail": str(traceback.format_exc()),
             },
         )
-
-def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
-    try:
-        shape_image = Image.open(mask_path).convert("RGBA")
-        
-        unique_id = uuid.uuid4()
-        image_path = os.path.join(process_folder, f'{unique_id}.png')
-        
-        if 'data:image' in input_image_url:
-            input_image_url = input_image_url.split(",")[1]
-            jpeg_data = base64.b64decode(input_image_url)
-            background_image = Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
-        else:
-            response = requests.get(input_image_url)
-            background_image = Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
-        
-        if not background_image:
-            raise Exception("Image not found")
-        
-        # Composite the images
-        r, g, b, a = shape_image.split()
-        composite_image = Image.composite(shape_image, background_image, a)
-        composite_image.save(image_path)
-
-        # Remove green background using a color range filter
-        image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
-        os.remove(image_path)
-        
-        # Convert image to BGR (cv2 works with BGR format)
-        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
-        
-        # Define the green screen color range
-        # lower_green = np.array([0, 100, 0, 255], dtype=np.uint8)
-        # upper_green = np.array([120, 255, 120, 255], dtype=np.uint8)
-        # lower_green = np.array([81, 177, 37, 255], dtype=np.uint8)
-        # upper_green = np.array([83, 179, 39, 255], dtype=np.uint8)
-        lower_green = np.array([82, 178, 38, 255], dtype=np.uint8)
-        upper_green = np.array([82, 178, 38, 255], dtype=np.uint8)
-        
-        # Create a mask to remove the green background
-        mask = cv2.inRange(image_bgr, lower_green, upper_green)
-
-        # Apply morphological operations to clean up the mask
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        
-        mask_inv = cv2.bitwise_not(mask)
-        
-        # Extract the foreground
-        foreground = cv2.bitwise_and(image, image, mask=mask_inv)
-        
-        # Create alpha channel based on the mask
-        b, g, r, a = cv2.split(foreground)
-        alpha_channel = cv2.bitwise_and(a, a, mask=mask_inv)
-        foreground_with_alpha = cv2.merge([b, g, r, alpha_channel])
-        
-        # Save the result
-        cv2.imwrite(image_path, foreground_with_alpha)
-
-        # Convert image dpi => 200
-        with Image.open(image_path) as img:
-            img.save(image_path, dpi=(200, 200))
-
-        base64_string = image_to_base64(image_path)
-        os.remove(image_path)
-        
-        url = processAndSaveImage(base64_string, img_id)
-        return url
-    except Exception as error:
-        logger.error(f"Error in printful_utils : {error}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "message": "Internal Server Error",
-                "currentFrame": getframeinfo(currentframe()),
-                "detail": str(traceback.format_exc()),
-            },
-        )
-
 
 def processAndSaveImage(image_data: str, img_id: str):
     try:
@@ -284,9 +267,18 @@ def products_and_variants_map():
 
     if "cap" in product_map:
         product_map["cap"]["size_map"] = {
+            "xs": "One size",
+            "XS": "One size",
+            "s": "One size",
+            "S": "One size",
             "m": "One size",
             "M": "One size",
-            "XS": "One size",
+            "l": "One size",
+            "L": "One size",
+            "xl": "One size",
+            "XL": "One size",
+            "xxl": "One size",
+            "XXL": "One size",
         }
         product_map["cap"]["color_map"] = {
             "black": "Black",
@@ -299,6 +291,15 @@ def products_and_variants_map():
         product_map["mug"]["size_map"] = {"m": "11 oz", "M": "11 oz"}
 
     if "tshirt" in product_map:
+        product_map["tshirt"]["size_map"] = {
+            "xs": "XS",
+            "s": "S",
+            "m": "M",
+            "l": "L",
+            "xl": "XL",
+            "xxl": "2XL",
+            "XXL": "2XL",
+        }
         product_map["tshirt"]["color_map"] = {
             "black": "Black",
             "brick": "Brick Red",
