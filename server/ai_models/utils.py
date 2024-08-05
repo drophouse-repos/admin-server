@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from ai_models.TitanImageGenerator import TitanImageGenerator
+from ai_models.MockTitanImageGenerator import MockTitanImageGenerator
 from utils.error_check import handle_openai_error
 from database.BASE import BaseDatabaseOperation
 from inspect import currentframe, getframeinfo
@@ -47,8 +48,8 @@ async def generate_prompts(prompts: List[str], numberOfPrompts: int):
 					no more or less than {num_prompts_for_this_theme} prompts. Your suggestions should increase 
 					the original themes' specificity, uniqueness, different from other prompts, and detail 
 					to generate vivid and engaging images. The designs should be aesthetic and visually appealing.
-     
-     				The structure should be as follows:
+	 
+					The structure should be as follows:
 					{{
 						"Prompts": ["Prompt1", "Prompt2", ...., "Prompt{num_prompts_for_this_theme}"]
 					}}
@@ -78,10 +79,16 @@ async def generate_prompts(prompts: List[str], numberOfPrompts: int):
 async def generate_images(
 	prompts: List[str]
 ):
-	ai_model_primary = TitanImageGenerator()
 	try:
-		tasks = [ai_model_primary.generate_single_image(idx, prompt) for idx, prompt in enumerate(prompts)]
-		return await asyncio.gather(*tasks, return_exceptions=True)
+		DB_ENV = os.environ.get("DB_ENV")
+		if DB_ENV and DB_ENV == "prod":
+			ai_model_primary = TitanImageGenerator()
+			tasks = [ai_model_primary.generate_single_image(idx, prompt) for idx, prompt in enumerate(prompts)]
+			return await asyncio.gather(*tasks, return_exceptions=True)
+		else:
+			ai_model_primary = MockTitanImageGenerator()
+			tasks = [ai_model_primary.generate_single_image(idx, prompt) for idx, prompt in enumerate(prompts)]
+			return await asyncio.gather(*tasks, return_exceptions=True)
 	except openai.OpenAIError as e:
 		handle_openai_error(e)
 	except HTTPException as http_exc:

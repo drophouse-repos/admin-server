@@ -154,6 +154,7 @@ async def make_bulk_order(
 
         retry = 0
         user_data = request.file
+        print('dd',response_data)
         retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         tasks = []
         for idx in range(len(user_data)):
