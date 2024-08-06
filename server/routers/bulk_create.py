@@ -36,7 +36,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 min_retry = 10
-
 @bulk_order_router.post("/bulk-download-prepared_orders")
 async def bulk_prepare(
     background_tasks: BackgroundTasks,
@@ -145,31 +144,34 @@ async def make_bulk_order(
 ):
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
+    
     try:
+        semaphore = asyncio.Semaphore(100)
+        retry_limit = max(len(request.file) // 2, min_retry)
+
         if not request.is_prompt:
             generated_data = await generate_prompts(request.prompts, request.numImages)
-            response_data = await generate_images(generated_data)
+            response_data = await generate_images(generated_data, semaphore)
         else:
-            response_data = await generate_images(request.prompts)
+            response_data = await generate_images(request.prompts, semaphore)
 
-        retry = 0
-        user_data = request.file
-        print('dd',response_data)
-        retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         tasks = []
-        for idx in range(len(user_data)):
+        for idx in range(len(request.file)):
+            user_data = request.file[idx]
             imageresponse = response_data[idx]
+            retry = 0
+
             if isinstance(imageresponse, Exception) or imageresponse is None:
                 if retry > retry_limit:
-                    raise HTTPException(status_code=400, detail={'message': "Image regeneration thershold reached", 'currentFrame': getframeinfo(currentframe())})
-                logger.info(f"Image Generation failed : retrying [{retry}/{retry_limit}]")
-                imageresponse, retry = await generate_failed_image(request.prompts, retry, retry_limit)
+                    raise HTTPException(status_code=400, detail={"message": "Image regeneration threshold reached", 'currentFrame': getframeinfo(currentframe())})
+                logger.info(f"Image Generation failed: retrying [{retry}/{retry_limit}]")
+                imageresponse, retry = await generate_failed_image(request.prompts, retry, retry_limit, semaphore)
                 
             order_id = str(uuid.uuid4())
-            if 'order_id' in user_data[idx]:
-                order_id = user_data[idx]['order_id']
+            if 'order_id' in user_data:
+                order_id = user_data['order_id']
 
-            org_id = user_data[idx]['org_id']
+            org_id = user_data['org_id']
             organization = await org_db_ops.get_organization_data(org_id)
             if not organization:
                 thumbnail = 'null'
@@ -177,35 +179,33 @@ async def make_bulk_order(
                 default_product = next(
                     (
                         product for product in organization['products']
-                        if product['name'] == user_data[idx]['apparel'] and
+                        if product['name'] == user_data['apparel'] and
                         isinstance(product['colors'], dict) and
-                        any(color['name'] == user_data[idx]['color'] for color in product['colors'].values())
+                        any(color['name'] == user_data['color'] for color in product['colors'].values())
                     ),
                     None
                 )
                 if not default_product:
                     thumbnail = 'null'
-                    logger.error(f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
-                    # raise HTTPException(status_code=404, detail=f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                    logger.error(f"Default product not found for apparel: {user_data['apparel']} and color: {user_data['color']}")
                 else:
                     color_asset = next(
-                    (
-                        color['asset']['front'] for color in default_product['colors'].values()
-                        if color['name'] == user_data[idx]['color']
-                    ),
-                    None
+                        (
+                            color['asset']['front'] for color in default_product['colors'].values()
+                            if color['name'] == user_data['color']
+                        ),
+                        None
                     )
                     if not color_asset:
                         thumbnail = 'null'
-                        logger.error(f"Choosen color not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
-                        # raise HTTPException(status_code=404, detail=f"Asset not found for color: {user_data[idx]['color']}")
+                        logger.error(f"Chosen color not found for apparel: {user_data['apparel']} and color: {user_data['color']}")
                     else:
                         Dim_left = default_product['dimensions']['left']
                         Dim_top = default_product['dimensions']['top']
                         Dim_width = default_product['dimensions']['width']
                         Dim_height = default_product['dimensions']['height']
                         thumbnail = await get_selected_preview_image(
-                            pattern_src_url= generate_presigned_url(imageresponse[1], "browse-image-v2"),
+                            pattern_src_url=generate_presigned_url(imageresponse[1], "browse-image-v2"),
                             default_product_base64=color_asset,
                             Dim_left=Dim_left,
                             Dim_top=Dim_top,
@@ -215,78 +215,78 @@ async def make_bulk_order(
                         thumbnail_img_id = "t_" + imageresponse[1]
                         tasks.append(asyncio.to_thread(processAndSaveImage, thumbnail, thumbnail_img_id, "thumbnails-cart"))
 
-
             order_model = OrderItem(
-                user_id=user_data[idx]['email'],
+                user_id=user_data['email'],
                 org_id=org_id,
-                org_name=user_data[idx]['org_name'],
+                org_name=user_data['org_name'],
                 autogenerated=True,
                 order_id=order_id,
                 status='pending',
                 timestamp=datetime.datetime.utcnow(),
                 shipping_info=ShippingModel(
-                    firstName=user_data[idx]['first_name'],
-                    lastName=user_data[idx]['last_name'],
-                    email=user_data[idx]['email'],
-                    phone=user_data[idx]['phone'],
-                    streetAddress=user_data[idx]['streetAddress'],
-                    streetAddress2=user_data[idx]['streetAddress2'],
-                    city=user_data[idx]['city'],
-                    stateProvince=user_data[idx]['state'],
-                    postalZipcode=user_data[idx]['postalZipcode'],
+                    firstName=user_data['first_name'],
+                    lastName=user_data['last_name'],
+                    email=user_data['email'],
+                    phone=user_data['phone'],
+                    streetAddress=user_data['streetAddress'],
+                    streetAddress2=user_data['streetAddress2'],
+                    city=user_data['city'],
+                    stateProvince=user_data['state'],
+                    postalZipcode=user_data['postalZipcode'],
                     addressType='primary'
                 ),
                 item=[ItemModel(
-                    apparel=user_data[idx]['apparel'],
-                    size=user_data[idx]['shirt-size'],
-                    color=user_data[idx]['color'],
+                    apparel=user_data['apparel'],
+                    size=user_data['shirt-size'],
+                    color=user_data['color'],
                     img_id=imageresponse[1],
                     prompt=imageresponse[2],
                     timestamp=datetime.datetime.utcnow(),
                     thumbnail=thumbnail,
                     toggled=False,
-                    price=user_data[idx]['price']
+                    price=user_data['price']
                 )]
             )
-            user_data[idx]['img_id'] = imageresponse[1]
-            user_data[idx]['prompt'] = imageresponse[2]
+            user_data['img_id'] = imageresponse[1]
+            user_data['prompt'] = imageresponse[2]
 
-            if 'order_id' in user_data[idx]:
+            if 'order_id' in user_data:
                 result = await order_db_ops.update_order(order_model)
                 if not result:
-                    raise HTTPException(status_code=404, detail={'message': "Can't able to update an order", 'currentFrame': getframeinfo(currentframe())})
+                    raise HTTPException(status_code=404, detail={"message": "Unable to update order", 'currentFrame': getframeinfo(currentframe())})
             else:
                 result = await order_db_ops.create_order(order_model)
                 if result:
-                    user_data[idx]['order_id'] = order_id
+                    user_data['order_id'] = order_id
                 else:
-                    raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
+                    raise HTTPException(status_code=404, detail={"message": "Unable to create order", 'currentFrame': getframeinfo(currentframe())})
+
         await asyncio.gather(*tasks)
-        return user_data
+        return request.file
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
         logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+        raise HTTPException(status_code=500, detail={"message": "Internal Server Error", "detail": str(traceback.format_exc()), 'currentFrame': getframeinfo(currentframe())})
 
-async def generate_failed_image(prompts: List[str], retry: int, retry_limit: int):
-    try:
-        retry = retry + 1
-        logger.info(f"Image Generation failed : retrying begin [{retry-1}/{retry_limit}]")
-        generated_data = await generate_prompts([random.choice(prompts)], 1)
-        response_data = await generate_images(generated_data)
+async def generate_failed_image(prompts: List[str], retry: int, retry_limit: int, semaphore: asyncio.Semaphore):
+    async with semaphore:
+        try:
+            retry += 1
+            logger.info(f"Image Generation failed: retrying [{retry}/{retry_limit}]")
+            generated_data = await generate_prompts([random.choice(prompts)], 1)
+            response_data = await generate_images(generated_data, semaphore)
 
-        imageresponse = response_data[0]
-        if isinstance(imageresponse, Exception) or imageresponse is None:
-            logger.info(f"Image Generation failed : retrying failed [{retry-1}/{retry_limit}]")
-            if retry > retry_limit:
-                raise HTTPException(status_code=400, detail={'message': "Image regeneration thershold reached", 'currentFrame': getframeinfo(currentframe())})
-            return await generate_failed_image(prompts, retry, retry_limit)
+            imageresponse = response_data[0]
+            if isinstance(imageresponse, Exception) or imageresponse is None:
+                logger.info(f"Image Generation failed: retrying failed [{retry}/{retry_limit}]")
+                if retry > retry_limit:
+                    raise HTTPException(status_code=400, detail={"message": "Image regeneration threshold reached", 'currentFrame': getframeinfo(currentframe())})
+                return await generate_failed_image(prompts, retry, retry_limit, semaphore)
 
-        logger.info(f"Image Generation failed : retrying success")
-        return imageresponse, retry
-    except HTTPException as http_ex:
-        raise http_ex
-    except Exception as e:
-        logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+            logger.info("Image Generation failed: retrying success")
+            return imageresponse, retry
+        except Exception as e:
+            logger.error(f"Error in generate_failed_image: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail={"message": "Internal Server Error", "detail": str(traceback.format_exc()), 'currentFrame': getframeinfo(currentframe())})
+            
