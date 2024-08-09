@@ -64,6 +64,22 @@ async def place_order(
         logger.error(f"Error in place_order: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
 
+class order_id(BaseModel):
+    order_id: str
+
+@order_info_router.post("/get_order_by_id")
+async def get_order_by_id(
+    request: order_id,
+    db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations))
+):
+    try:
+        order = await db_ops.getByOrderID(request.order_id)
+        if order:
+            return order
+        else:
+            raise HTTPException(status_code=404, detail={'message':"order data with order id : '{request.order_id}' is not found"})
+    except HTTPException as http_ex:
+        raise http_ex
 
 @order_info_router.post("/update_order")
 async def update_order(

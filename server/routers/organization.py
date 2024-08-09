@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from bson import ObjectId
 from pydantic import BaseModel
-import aiohttp
+import httpx
 import base64
 
 logging.basicConfig(level=logging.INFO)
@@ -33,15 +33,16 @@ class OrgIdRequest(BaseModel):
     org_id: str
     apparel: str
     color: str
+    img_url: str
 
 async def fetch_image_as_base64(image_url: str) -> str:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(image_url) as response:
-            if response.status != 200:
-                raise HTTPException(status_code=response.status, detail="Failed to fetch image")
-            image_data = await response.read()
-            base64_data = base64.b64encode(image_data).decode('utf-8')
-            return f"data:image/jpeg;base64,{base64_data}"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(image_url)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
+        image_data = response.content
+        base64_data = base64.b64encode(image_data).decode('utf-8')
+        return f"data:image/jpeg;base64,{base64_data}"
 
 @org_router.post("/get_org_data")
 async def get_org_data(
@@ -52,6 +53,7 @@ async def get_org_data(
         org_id = request_body.org_id
         apparel = request_body.apparel
         color_name = request_body.color
+        image_url = request_body.img_url
         organization_data = await org_db_ops.get_organization_data(org_id)
         if not organization_data:
               logger.error("No organisation is available with id : {org_id}")
@@ -78,7 +80,8 @@ async def get_org_data(
             Dim_height = default_product['dimensions']['height']
             Dim_width = default_product['dimensions']['width']
             mock_img = default_product['mask']
-            return {"color_asset": color_asset,"Dim_Left": Dim_Left,"Dim_Top": Dim_Top,"Dim_height": Dim_height,"Dim_width": Dim_width,"mock_img": mock_img}
+            base64_image = await fetch_image_as_base64(image_url)
+            return {"color_asset": color_asset,"Dim_Left": Dim_Left,"Dim_Top": Dim_Top,"Dim_height": Dim_height,"Dim_width": Dim_width,"mock_img": mock_img,"base64_img":base64_image}
 
     except Exception as e:
         logger.error(f"Error in getting Organization: {str(e)}", exc_info=True)
