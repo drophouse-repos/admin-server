@@ -34,6 +34,7 @@ opencv-python = "^4.10.0.84"
 itsdangerous = "^2.2.0"
 email-validator = "^2.2.0"
 pandas = "^2.2.2"
+aiofiles = "^24.1.0"
 
 
 [build-system]

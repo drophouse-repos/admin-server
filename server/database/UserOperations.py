@@ -69,7 +69,13 @@ class UserOperations(BaseDatabaseOperation):
                                     'price': '$$i.price',
                                     'toggled': {
                                         '$cond': {
-                                            'if': {'$eq': ['$$i.toggled', False]},
+                                            # 'if': {'$eq': ['$$i.toggled', False]},
+                                            'if': {
+                                                        '$or': [
+                                                            {'$eq': ['$$i.toggled', False]},
+                                                            {'$eq': ['$$i.toggled', "NULL"]}
+                                                        ]
+                                                    },
                                             'then': False,
                                             'else': True
                                         }

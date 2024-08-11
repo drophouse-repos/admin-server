@@ -3,7 +3,9 @@ import logging
 from database.BASE import BaseDatabaseOperation
 from models.OrderItemModel import OrderItem
 from aws_utils import generate_presigned_url
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
+from models.OrderByID import OrderItem_new
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -108,15 +110,29 @@ class OrderOperations(BaseDatabaseOperation):
             logger.error(f"Error retrieving orders: {e}")
             return []
         
+        
     async def getByOrderID(self, order_id: str):
         try:
+            # Retrieve the order
             raw_order = await self.db.orders.find_one({"order_id": order_id})
-            order = OrderItem(**raw_order)
+            # Generate presigned URLs for images if 'item' exists
+            if "item" in raw_order:
+                for item in raw_order["item"]:
+                    img_id = item.get("img_id")
+                    if img_id:
+                        # Generate the presigned URLs
+                        thumbnail_img_id = "t_" + img_id
+                        item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
+                        item["img_url"] = generate_presigned_url(img_id, "browse-image-v2")
+            
+            # Create an OrderItem instance from the modified raw_order
+            order = OrderItem_new(**raw_order)
             return order
         except Exception as e:
-            logger.error(f"Error retrieving orders: {e}")
-            print("order not found")
-            return
+            logger.error(f"Error retrieving order with ID {order_id}: {e}")
+            print("An error occurred while retrieving the order.")
+            return None
+
         
     async def update_order_status(self, user_id: str, order_id: str, new_status: str):
         try:
