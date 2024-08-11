@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from models.bulkordermodel import BulkOrderRequest
+from models.regeneratemodel import Regenerate
+from models.reorder import Reorder
 from models.OrderItemModel import OrderItem
 from models.ShippingModel import ShippingModel
 from models.ItemModel import ItemModel
-from ai_models.utils import generate_prompts, generate_images
+from ai_models.utils import generate_prompts, generate_images, generate_three_images, generate_three_prompts
 from routers.order_info import PlaceOrderDataRequest, place_order
 from fastapi.responses import JSONResponse, FileResponse
 from aws_utils import generate_presigned_url, processAndSaveImage
@@ -102,10 +104,21 @@ async def get_selected_preview_image(pattern_src_url, default_product_base64, Di
         # logger.info(f"Calculated Coordinates - x: {tmp_x}, y: {tmp_y}, width: {tmp_width}, height: {tmp_height}")
         default_product_base64_new = correct_base64_padding(strip_base64_prefix(default_product_base64))
         cloth_img_data = base64.b64decode(default_product_base64_new)
-        pattern_img_response = requests.get(pattern_src_url)
-        pattern_img_response.raise_for_status()
-        cloth_img = Image.open(BytesIO(cloth_img_data)).convert("RGBA")
-        pattern_img = Image.open(BytesIO(pattern_img_response.content)).convert("RGBA")
+        if pattern_src_url.startswith('data:image/jpeg;base64,'):
+            pattern_img_res = correct_base64_padding(pattern_src_url[len('data:image/jpeg;base64,'):])
+            pattern_img_respons = base64.b64decode(pattern_img_res)
+            cloth_img = Image.open(BytesIO(cloth_img_data)).convert("RGBA")
+            pattern_img = Image.open(BytesIO(pattern_img_respons)).convert("RGBA")
+        elif pattern_src_url.startswith('data:image/png;base64,'):
+            pattern_img_res = correct_base64_padding(pattern_src_url[len('data:image/png;base64,'):])
+            pattern_img_respons = base64.b64decode(pattern_img_res)
+            cloth_img = Image.open(BytesIO(cloth_img_data)).convert("RGBA")
+            pattern_img = Image.open(BytesIO(pattern_img_respons)).convert("RGBA")
+        else:
+            pattern_img_response = requests.get(pattern_src_url)
+            pattern_img_response.raise_for_status()
+            cloth_img = Image.open(BytesIO(cloth_img_data)).convert("RGBA")
+            pattern_img = Image.open(BytesIO(pattern_img_response.content)).convert("RGBA")
         total_pixels = cloth_img.height
         x = percentage_to_pixels(Dim_left, total_pixels)
         y = percentage_to_pixels(Dim_top, total_pixels)
@@ -136,39 +149,48 @@ async def get_selected_preview_image(pattern_src_url, default_product_base64, Di
         logger.error(f"Error generating preview image: {e}")
         return None
 
-@bulk_order_router.post("/bulk-order")
-async def make_bulk_order(
-    request: BulkOrderRequest,
-    order_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
-    price_db_ops: BaseDatabaseOperation = Depends(get_db_ops(PricesOperations)),
-    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation))
+@bulk_order_router.post("/generate_three_image")
+async def generate_three_image(
+    request: Regenerate,
 ):
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
     try:
-        if not request.is_prompt:
-            generated_data = await generate_prompts(request.prompts, request.numImages)
-            response_data = await generate_images(generated_data)
-        else:
-            response_data = await generate_images(request.prompts)
-
-        retry = 0
+        image_count = 3
+        generated_data = await generate_three_prompts(request.prompts, image_count)
+        response_data = await generate_three_images(generated_data)
+        img_urls = []
+        prompts = []
+        for idx in range(image_count):
+            image_response = response_data[idx]
+            img_url = image_response[1]
+            img_prompts = image_response[2]
+            prompts.append(img_prompts)
+            img_urls.append(img_url)
+        return {"data": img_urls,"prompt":prompts}
+    except HTTPException as http_ex:
+        raise http_ex
+@bulk_order_router.post("/regenerate_order")
+async def regenerate_order(
+    request: Reorder,
+    order_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+    price_db_ops: BaseDatabaseOperation = Depends(get_db_ops(PricesOperations)),
+    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation))
+):
+    try:
         user_data = request.file
-        retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         tasks = []
-        for idx in range(len(user_data)):
-            imageresponse = response_data[idx]
-            if isinstance(imageresponse, Exception) or imageresponse is None:
-                if retry > retry_limit:
-                    raise HTTPException(status_code=400, detail={'message': "Image regeneration thershold reached", 'currentFrame': getframeinfo(currentframe())})
-                logger.info(f"Image Generation failed : retrying [{retry}/{retry_limit}]")
-                imageresponse, retry = await generate_failed_image(request.prompts, retry, retry_limit)
-                
+        for idx in range(len(user_data)):              
             order_id = str(uuid.uuid4())
             if 'order_id' in user_data[idx]:
                 order_id = user_data[idx]['order_id']
-
+                
             org_id = user_data[idx]['org_id']
+            img_id = str(uuid.uuid4())
+            # image_data = user_data[idx]['img_url']
+            # base64Data = image_data[len('data:image/jpeg;base64,'):]
+            # img_data = f"data:image/png;base64,{base64Data}"
+            img_url = processAndSaveImage(user_data[idx]['img_url'], img_id, "browse-image-v2")
             organization = await org_db_ops.get_organization_data(org_id)
             if not organization:
                 thumbnail = 'null'
@@ -185,7 +207,6 @@ async def make_bulk_order(
                 if not default_product:
                     thumbnail = 'null'
                     logger.error(f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
-                    # raise HTTPException(status_code=404, detail=f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
                 else:
                     color_asset = next(
                     (
@@ -197,21 +218,20 @@ async def make_bulk_order(
                     if not color_asset:
                         thumbnail = 'null'
                         logger.error(f"Choosen color not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
-                        # raise HTTPException(status_code=404, detail=f"Asset not found for color: {user_data[idx]['color']}")
                     else:
                         Dim_left = default_product['dimensions']['left']
                         Dim_top = default_product['dimensions']['top']
                         Dim_width = default_product['dimensions']['width']
                         Dim_height = default_product['dimensions']['height']
                         thumbnail = await get_selected_preview_image(
-                            pattern_src_url= generate_presigned_url(imageresponse[1], "browse-image-v2"),
+                            pattern_src_url= user_data[idx]['img_url'],
                             default_product_base64=color_asset,
                             Dim_left=Dim_left,
                             Dim_top=Dim_top,
                             Dim_width=Dim_width,
                             Dim_height=Dim_height
                         )
-                        thumbnail_img_id = "t_" + imageresponse[1]
+                        thumbnail_img_id = "t_" + img_id
                         tasks.append(asyncio.to_thread(processAndSaveImage, thumbnail, thumbnail_img_id, "thumbnails-cart"))
 
 
@@ -239,16 +259,14 @@ async def make_bulk_order(
                     apparel=user_data[idx]['apparel'],
                     size=user_data[idx]['shirt-size'],
                     color=user_data[idx]['color'],
-                    img_id=imageresponse[1],
-                    prompt=imageresponse[2],
+                    img_id=img_id,
+                    prompt=user_data[idx]['prompt'],
                     timestamp=datetime.datetime.utcnow(),
                     thumbnail=thumbnail,
-                    toggled=False,
+                    toggled=user_data[idx]['toggled'],
                     price=user_data[idx]['price']
                 )]
             )
-            user_data[idx]['img_id'] = imageresponse[1]
-            user_data[idx]['prompt'] = imageresponse[2]
 
             if 'order_id' in user_data[idx]:
                 result = await order_db_ops.update_order(order_model)
@@ -260,6 +278,241 @@ async def make_bulk_order(
                     user_data[idx]['order_id'] = order_id
                 else:
                     raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
+        await asyncio.gather(*tasks)
+        return user_data
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+
+@bulk_order_router.post("/bulk-order")
+async def make_bulk_order(
+    request: BulkOrderRequest,
+    order_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+    price_db_ops: BaseDatabaseOperation = Depends(get_db_ops(PricesOperations)),
+    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation))
+):
+    if request.password != HARD_CODED_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid password")
+    try:
+        # if not request.is_prompt:
+        #     generated_data = await generate_prompts(request.prompts, request.numImages)
+        #     response_data = await generate_images(generated_data)
+        # else:
+        #     response_data = await generate_images(request.prompts)
+        if not request.is_prompt and not request.is_toggled:
+            generated_data = await generate_prompts(request.prompts, request.numImages)
+            response_data = await generate_images(generated_data)
+        elif request.is_prompt and not request.is_toggled:
+            response_data = await generate_images(request.prompts)
+        elif request.is_toggled:
+            pass
+
+        retry = 0
+        user_data = request.file
+        retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
+        tasks = []
+        for idx in range(len(user_data)):
+            if not request.is_toggled: 
+                imageresponse = response_data[idx]
+                if isinstance(imageresponse, Exception) or imageresponse is None:
+                    if retry > retry_limit:
+                        raise HTTPException(status_code=400, detail={'message': "Image regeneration thershold reached", 'currentFrame': getframeinfo(currentframe())})
+                    logger.info(f"Image Generation failed : retrying [{retry}/{retry_limit}]")
+                    imageresponse, retry = await generate_failed_image(request.prompts, retry, retry_limit)
+                    
+                order_id = str(uuid.uuid4())
+                if 'order_id' in user_data[idx]:
+                    order_id = user_data[idx]['order_id']
+
+                org_id = user_data[idx]['org_id']
+                organization = await org_db_ops.get_organization_data(org_id)
+                if not organization:
+                    thumbnail = 'null'
+                else:
+                    default_product = next(
+                        (
+                            product for product in organization['products']
+                            if product['name'] == user_data[idx]['apparel'] and
+                            isinstance(product['colors'], dict) and
+                            any(color['name'] == user_data[idx]['color'] for color in product['colors'].values())
+                        ),
+                        None
+                    )
+                    if not default_product:
+                        thumbnail = 'null'
+                        logger.error(f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                        # raise HTTPException(status_code=404, detail=f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                    else:
+                        color_asset = next(
+                        (
+                            color['asset']['front'] for color in default_product['colors'].values()
+                            if color['name'] == user_data[idx]['color']
+                        ),
+                        None
+                        )
+                        if not color_asset:
+                            thumbnail = 'null'
+                            logger.error(f"Choosen color not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                            # raise HTTPException(status_code=404, detail=f"Asset not found for color: {user_data[idx]['color']}")
+                        else:
+                            Dim_left = default_product['dimensions']['left']
+                            Dim_top = default_product['dimensions']['top']
+                            Dim_width = default_product['dimensions']['width']
+                            Dim_height = default_product['dimensions']['height']
+                            thumbnail = await get_selected_preview_image(
+                                pattern_src_url= generate_presigned_url(imageresponse[1], "browse-image-v2"),
+                                default_product_base64=color_asset,
+                                Dim_left=Dim_left,
+                                Dim_top=Dim_top,
+                                Dim_width=Dim_width,
+                                Dim_height=Dim_height
+                            )
+                            thumbnail_img_id = "t_" + imageresponse[1]
+                            tasks.append(asyncio.to_thread(processAndSaveImage, thumbnail, thumbnail_img_id, "thumbnails-cart"))
+
+
+                order_model = OrderItem(
+                    user_id=user_data[idx]['email'],
+                    org_id=org_id,
+                    org_name=user_data[idx]['org_name'],
+                    autogenerated=True,
+                    order_id=order_id,
+                    status='pending',
+                    timestamp=datetime.datetime.utcnow(),
+                    shipping_info=ShippingModel(
+                        firstName=user_data[idx]['first_name'],
+                        lastName=user_data[idx]['last_name'],
+                        email=user_data[idx]['email'],
+                        phone=user_data[idx]['phone'],
+                        streetAddress=user_data[idx]['streetAddress'],
+                        streetAddress2=user_data[idx]['streetAddress2'],
+                        city=user_data[idx]['city'],
+                        stateProvince=user_data[idx]['state'],
+                        postalZipcode=user_data[idx]['postalZipcode'],
+                        addressType='primary'
+                    ),
+                    item=[ItemModel(
+                        apparel=user_data[idx]['apparel'],
+                        size=user_data[idx]['shirt-size'],
+                        color=user_data[idx]['color'],
+                        img_id=imageresponse[1],
+                        prompt=imageresponse[2],
+                        timestamp=datetime.datetime.utcnow(),
+                        thumbnail=thumbnail,
+                        toggled=user_data[idx]['toggled'],
+                        price=user_data[idx]['price']
+                    )]
+                )
+                user_data[idx]['img_id'] = imageresponse[1]
+                user_data[idx]['prompt'] = imageresponse[2]
+
+                if 'order_id' in user_data[idx]:
+                    result = await order_db_ops.update_order(order_model)
+                    if not result:
+                        raise HTTPException(status_code=404, detail={'message': "Can't able to update an order", 'currentFrame': getframeinfo(currentframe())})
+                else:
+                    result = await order_db_ops.create_order(order_model)
+                    if result:
+                        user_data[idx]['order_id'] = order_id
+                    else:
+                        raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
+            else:                 
+                order_id = str(uuid.uuid4())
+                if 'order_id' in user_data[idx]:
+                    order_id = user_data[idx]['order_id']
+
+                org_id = user_data[idx]['org_id']
+                organization = await org_db_ops.get_organization_data(org_id)
+                if not organization:
+                    thumbnail = 'null'
+                else:
+                    default_product = next(
+                        (
+                            product for product in organization['products']
+                            if product['name'] == user_data[idx]['apparel'] and
+                            isinstance(product['colors'], dict) and
+                            any(color['name'] == user_data[idx]['color'] for color in product['colors'].values())
+                        ),
+                        None
+                    )
+                    if not default_product:
+                        thumbnail = 'null'
+                        logger.error(f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                        # raise HTTPException(status_code=404, detail=f"Default product not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                    else:
+                        color_asset = next(
+                        (
+                            color['asset']['front'] for color in default_product['colors'].values()
+                            if color['name'] == user_data[idx]['color']
+                        ),
+                        None
+                        )
+                        if not color_asset:
+                            thumbnail = 'null'
+                            logger.error(f"Choosen color not found for apparel: {user_data[idx]['apparel']} and color: {user_data[idx]['color']}")
+                            # raise HTTPException(status_code=404, detail=f"Asset not found for color: {user_data[idx]['color']}")
+                        else:
+                            Dim_left = default_product['dimensions']['left']
+                            Dim_top = default_product['dimensions']['top']
+                            Dim_width = default_product['dimensions']['width']
+                            Dim_height = default_product['dimensions']['height']
+                            thumbnail = await get_selected_preview_image(
+                                pattern_src_url= user_data[idx]['toggled'],
+                                default_product_base64=color_asset,
+                                Dim_left=Dim_left,
+                                Dim_top=Dim_top,
+                                Dim_width=Dim_width,
+                                Dim_height=Dim_height
+                            )
+                            thumbnail_img_id = "t_" + user_data[idx]['img_id']
+                            tasks.append(asyncio.to_thread(processAndSaveImage, thumbnail, thumbnail_img_id, "thumbnails-cart"))
+
+
+                order_model = OrderItem(
+                    user_id=user_data[idx]['email'],
+                    org_id=org_id,
+                    org_name=user_data[idx]['org_name'],
+                    autogenerated=True,
+                    order_id=order_id,
+                    status='pending',
+                    timestamp=datetime.datetime.utcnow(),
+                    shipping_info=ShippingModel(
+                        firstName=user_data[idx]['first_name'],
+                        lastName=user_data[idx]['last_name'],
+                        email=user_data[idx]['email'],
+                        phone=user_data[idx]['phone'],
+                        streetAddress=user_data[idx]['streetAddress'],
+                        streetAddress2=user_data[idx]['streetAddress2'],
+                        city=user_data[idx]['city'],
+                        stateProvince=user_data[idx]['state'],
+                        postalZipcode=user_data[idx]['postalZipcode'],
+                        addressType='primary'
+                    ),
+                    item=[ItemModel(
+                        apparel=user_data[idx]['apparel'],
+                        size=user_data[idx]['shirt-size'],
+                        color=user_data[idx]['color'],
+                        img_id=user_data[idx]['img_id'],
+                        prompt=user_data[idx]['prompt'],
+                        timestamp=datetime.datetime.utcnow(),
+                        thumbnail=thumbnail,
+                        toggled=user_data[idx]['toggled'],
+                        price=user_data[idx]['price']
+                    )]
+                )
+
+                if 'order_id' in user_data[idx]:
+                    result = await order_db_ops.update_order(order_model)
+                    if not result:
+                        raise HTTPException(status_code=404, detail={'message': "Can't able to update an order", 'currentFrame': getframeinfo(currentframe())})
+                else:
+                    result = await order_db_ops.create_order(order_model)
+                    if result:
+                        user_data[idx]['order_id'] = order_id
+                    else:
+                        raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
         await asyncio.gather(*tasks)
         return user_data
     except HTTPException as http_ex:

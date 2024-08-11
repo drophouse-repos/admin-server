@@ -29,7 +29,7 @@ email_service = EmailService()
 app.add_middleware(
     CORSMiddleware,
 
-    allow_origins=["http://localhost:3001","http://localhost:3000", "https://superman-kappa.vercel.app"],
+    allow_origins=["http://localhost:3001","http://localhost:3000", "https://superman-kappa.vercel.app","https://admin-dashboard-dev-superman.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

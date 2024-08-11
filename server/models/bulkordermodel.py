@@ -7,3 +7,4 @@ class BulkOrderRequest(BaseModel):
     numImages: conint(gt=0)  
     password: constr(min_length=1)
     is_prompt: bool
+    is_toggled: bool

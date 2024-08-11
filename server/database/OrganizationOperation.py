@@ -55,7 +55,7 @@ class OrganizationOperation(BaseDatabaseOperation):
             logger.error(f"Error retrieving organization with ID {org_id}: {e}")
             return None
     
-    async def get_organization_data(self,org_id: int):
+    async def get_organization_data(self,org_id: str):
         organization = await self.db.organizations.find_one({"org_id": org_id})  # Replace 'organizations' with your collection name
         if not organization:
             logger.error(f"Error retrieving organization with ID {org_id}")
