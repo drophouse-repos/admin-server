@@ -60,3 +60,11 @@ class OrganizationOperation(BaseDatabaseOperation):
         if not organization:
             logger.error(f"Error retrieving organization with ID {org_id}")
         return organization
+    
+    async def delete_organization_data(self,org_id: str):
+        result = await self.db.organizations.delete_one({"org_id": org_id})
+        if result.deleted_count == 0:
+            logger.error(f"Error removing organization data with ID {org_id}")
+        else:
+            logger.info(f"Organization with ID: {org_id}, Deleted Successfully!!!")
+        return result

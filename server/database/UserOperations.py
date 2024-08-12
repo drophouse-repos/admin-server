@@ -73,7 +73,8 @@ class UserOperations(BaseDatabaseOperation):
                                             'if': {
                                                         '$or': [
                                                             {'$eq': ['$$i.toggled', False]},
-                                                            {'$eq': ['$$i.toggled', "NULL"]}
+                                                            {'$eq': ['$$i.toggled', "NULL"]},
+                                                            {'$eq': ['$$i.toggled', "FALSE"]}
                                                         ]
                                                     },
                                             'then': False,
