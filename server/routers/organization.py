@@ -17,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 org_router = APIRouter()
+HARD_CODED_PASSWORD = "Drophouse23#"
 
 @org_router.post("/organisation_list")
 async def organisation_list(
@@ -106,6 +107,27 @@ async def create_organisation(
 		logger.error(f"Error in creating Organization: {str(e)}", exc_info=True)
 		raise HTTPException(status_code=500, detail={'message':"Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
 
+class OrgData(BaseModel):
+    org_id: str
+    password: str
+
+@org_router.post("/delete_organisation")
+async def delete_organisation(
+     request: OrgData,
+     db_ops: OrganizationOperation = Depends(get_db_ops(OrganizationOperation))
+):
+    if request.password != HARD_CODED_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid password")
+    try:
+        org_id = request.org_id
+        result = await db_ops.delete_organization_data(org_id)
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
 @org_router.post("/update_organisation")
 async def update_organisation(
     # org_id: str,
