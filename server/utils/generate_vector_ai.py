@@ -27,10 +27,10 @@ VECTORIZER_TOKEN = os.environ.get("VECTORIZER_PRIVATE_TOKEN")
 if VECTORIZER_MODE == 'prod':
     VECTORIZER_MODE = 'production'
 
-zip_folder = "../student_module_zip_download"
-zip_folder1 = "../student_module_zip_download1"
-output_folder = "../student_module_zip_download/zip"
-output_folder1 = "../student_module_zip_download1/zip"
+zip_folder = "/mnt/data/student_module_zip_download"
+zip_folder1 = "/mnt/data/student_module_zip_download1"
+output_folder = "/mnt/data/student_module_zip_download/zip"
+output_folder1 = "/mnt/data/student_module_zip_download1/zip"
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 if not os.path.exists(output_folder1):
