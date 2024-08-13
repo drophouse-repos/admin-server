@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://api.printful.com"
 PRIVATE_TOKEN = os.environ.get("PRINTFUL_PRIVATE_TOKEN")
 
-process_folder = "../pre_processing_printful_images/"
+process_folder = "/mnt/data/pre_processing_printful_images/"
 if not os.path.exists(process_folder):
     os.makedirs(process_folder)
 
