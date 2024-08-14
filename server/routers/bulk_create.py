@@ -55,7 +55,7 @@ async def bulk_prepare(
                 if "images" in order:
                     for image in order["images"]:
                         size = image.split("_", 1)[0]
-                        zip_folder1 = f"../student_module_zip_download1/temp_student_products/{size}"
+                        zip_folder1 = f"/mnt/data/student_module_zip_download1/temp_student_products/{size}"
                         if not os.path.exists(zip_folder1):
                             os.makedirs(zip_folder1)
                         image_path = f"{zip_folder1}/{image}.png"
