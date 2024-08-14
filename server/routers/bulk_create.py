@@ -538,6 +538,6 @@ async def generate_failed_image(prompts: List[str], retry: int, retry_limit: int
             logger.info("Image Generation failed: retrying success")
             return imageresponse, retry
         except Exception as e:
-            logger.error(f"Error in generate_failed_image: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail={"message": "Internal Server Error", "detail": str(traceback.format_exc()), 'currentFrame': getframeinfo(currentframe())})
-            
+                logger.error(f"Error in generate_failed_image: {str(e)}", exc_info=True)
+                raise HTTPException(status_code=500, detail={"message": "Internal Server Error", "detail": str(traceback.format_exc()), 'currentFrame': getframeinfo(currentframe())})
+                
