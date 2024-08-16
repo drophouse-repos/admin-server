@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, WebSocket
 from models.bulkordermodel import BulkOrderRequest
 from models.regeneratemodel import Regenerate
 from models.reorder import Reorder
@@ -36,7 +36,7 @@ bulk_order_router = APIRouter()
 HARD_CODED_PASSWORD = "Drophouse23#"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+ag_task_storage = {}
 min_retry = 10
 
 @bulk_order_router.post("/bulk-download-prepared_orders")
@@ -301,6 +301,12 @@ async def make_bulk_order(
         #     response_data = await generate_images(generated_data)
         # else:
         #     response_data = await generate_images(request.prompts)
+        ag_task_storage[request.task_id] = {
+            'success': 0,
+            'failed': 0,
+            'progress': 0,
+            'total': request.numImages
+        }
         if not request.is_prompt and not request.is_toggled:
             generated_data = await generate_prompts(request.prompts, request.numImages)
             response_data = await generate_images(generated_data)
@@ -412,11 +418,14 @@ async def make_bulk_order(
                     result = await order_db_ops.update_order(order_model)
                     if not result:
                         raise HTTPException(status_code=404, detail={'message': "Can't able to update an order", 'currentFrame': getframeinfo(currentframe())})
+                    ag_task_storage[request.task_id]['success'] = ag_task_storage[request.task_id]['success'] + 1
                 else:
                     result = await order_db_ops.create_order(order_model)
                     if result:
                         user_data[idx]['order_id'] = order_id
+                        ag_task_storage[request.task_id]['success'] = ag_task_storage[request.task_id]['success'] + 1
                     else:
+                        ag_task_storage[request.task_id]['failed'] = ag_task_storage[request.task_id]['failed'] + 1
                         raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
             else:                 
                 order_id = str(uuid.uuid4())
@@ -507,13 +516,17 @@ async def make_bulk_order(
                     result = await order_db_ops.update_order(order_model)
                     if not result:
                         raise HTTPException(status_code=404, detail={'message': "Can't able to update an order", 'currentFrame': getframeinfo(currentframe())})
+                    ag_task_storage[request.task_id]['success'] = ag_task_storage[request.task_id]['success'] + 1
                 else:
                     result = await order_db_ops.create_order(order_model)
                     if result:
                         user_data[idx]['order_id'] = order_id
+                        ag_task_storage[request.task_id]['success'] = ag_task_storage[request.task_id]['success'] + 1
                     else:
+                        ag_task_storage[request.task_id]['failed'] = ag_task_storage[request.task_id]['success'] + 1
                         raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
         await asyncio.gather(*tasks)
+        ag_task_storage.pop(request.task_id, None)
         return user_data
     except HTTPException as http_ex:
         raise http_ex
@@ -542,3 +555,18 @@ async def generate_failed_image(prompts: List[str], retry: int, retry_limit: int
     except Exception as e:
         logger.error(f"Error in bulk order session: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail={'message': "Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+
+@bulk_order_router.websocket("/ws/progress/autogenerate/{task_id}")
+async def websocket_progress(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+    try:
+        while True:
+            if task_id in ag_task_storage:
+                await websocket.send_json(ag_task_storage[task_id])
+            else:
+                break
+            await asyncio.sleep(1)
+    except Exception as e:
+        logger.info(f"WebSocket error: {e}")
+    finally:
+        await websocket.close()
