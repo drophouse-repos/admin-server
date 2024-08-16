@@ -502,7 +502,7 @@ async def download_student_verified_orders(
         raise http_ex
     except Exception as e:
         logger.error(f"Error in download_student_verified_orders: {str(e)}", exc_info=True)
-        vector_task_storage.pop(request.task_id, None)
+        # vector_task_storage.pop(request.task_id, None)
         raise HTTPException(
             status_code=500,
             detail={
