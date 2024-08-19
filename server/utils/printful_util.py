@@ -46,7 +46,7 @@ async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
             background_image = Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
         else:
             async with httpx.AsyncClient() as client:
-                response = await client.get(input_image_url)
+                response = await client.get(input_image_url, timeout=10.0)
                 background_image = Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
 
         if not background_image:
