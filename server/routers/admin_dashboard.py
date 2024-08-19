@@ -547,7 +547,7 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
                 await websocket.send_json(vector_task_storage[task_id])
             else:
                 break
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)
     except Exception as e:
         logger.info(f"WebSocket error: {e}")
     finally:
