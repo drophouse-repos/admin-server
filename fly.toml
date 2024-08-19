@@ -16,3 +16,7 @@ PORT = "8080"
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+[[mounts]]
+  destination = "/mnt/data"
+  source = "testvol"
