@@ -125,23 +125,21 @@ async def generate_three_prompts(prompts: str, numberOfPrompts: int):
 		return {"Prompts": []}
 
 async def generate_images(
-	prompts: List[str]
+	prompts: List[str],
+	semaphore: asyncio.Semaphore
 ):
-	DB_ENV = os.environ.get("DB_ENV")
-	if DB_ENV and DB_ENV == "prod":
-		ai_model_primary = TitanImageGenerator()
-	else:
-		ai_model_primary = MockTitanImageGenerator()
-	try:
-		tasks = [ai_model_primary.generate_single_image(idx, prompt) for idx, prompt in enumerate(prompts)]
-		return await asyncio.gather(*tasks, return_exceptions=True)
-	except openai.OpenAIError as e:
-		handle_openai_error(e)
-	except HTTPException as http_exc:
-		raise http_exc
-	except Exception as e:
-		logger.error(f"Error in assigning image task: {str(e)}", exc_info=True)
-		raise HTTPException(status_code=500, detail={'message':f"Error in assigning image task: {str(e)}", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+	async with semaphore:
+			try:
+				DB_ENV = os.environ.get("DB_ENV")
+				if DB_ENV and DB_ENV == "prod":
+					ai_model_primary = TitanImageGenerator()
+				else:
+					ai_model_primary = MockTitanImageGenerator()
+				tasks = [ai_model_primary.generate_single_image(idx, prompt) for idx, prompt in enumerate(prompts)]
+				return await asyncio.gather(*tasks, return_exceptions=True)
+			except Exception as e:
+				logger.error(f"Error in assigning image task: {str(e)}", exc_info=True)
+				raise HTTPException(status_code=500, detail={'message':f"Error in assigning image task: {str(e)}", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
 	
 
 async def generate_three_images(
