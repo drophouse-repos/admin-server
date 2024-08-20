@@ -420,7 +420,7 @@ async def print_order(
         endpoint = "/orders"
         response = printful_request(endpoint, method="POST", data=order_data)
         if response:
-            is_updated = await db_ops.update(order_info.user_id, order_info.order_id, "prepared")
+            is_updated = await db_ops.update(order_info.user_id, order_info.order_id, "draft")
             if is_updated:
                 logger.info(f"Status updated /printful order_id: {order_info.order_id}")
             else:
