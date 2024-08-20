@@ -8,3 +8,4 @@ class BulkOrderRequest(BaseModel):
     password: constr(min_length=1)
     is_prompt: bool
     is_toggled: bool
+    task_id: str
