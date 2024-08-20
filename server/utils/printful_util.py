@@ -33,9 +33,11 @@ def image_to_base64(image_path):
         encoded_string = base64.b64encode(img_file.read())
         return encoded_string.decode("utf-8")
 
-async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
+async def applyMask_and_removeBackground(input_image_url, mask_data, img_id):
     try:
-        shape_image = Image.open(mask_path).convert("RGBA")
+        # shape_image = Image.open(mask_path).convert("RGBA")
+        image_bytes = base64.b64decode(mask_data)
+        shape_image = Image.open(BytesIO(image_bytes)).convert("RGBA")
 
         unique_id = uuid.uuid4()
         image_path = os.path.join(process_folder, f'{unique_id}.png')
@@ -95,9 +97,12 @@ async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
             },
         )
 
-def applyMask_and_removeBackground_file(input_image_url, mask_path, img_id, image_path):
+def applyMask_and_removeBackground_file(input_image_url, mask_data, img_id, image_path):
     try:
-        shape_image = Image.open(mask_path).convert("RGBA")
+        # shape_image = Image.open(mask_path).convert("RGBA")
+        image_bytes = base64.b64decode(mask_data)
+        shape_image = Image.open(BytesIO(image_bytes)).convert("RGBA")
+        
         if 'data:image' in input_image_url:
             input_image_url = input_image_url.split(",")[1]
             jpeg_data = base64.b64decode(input_image_url)

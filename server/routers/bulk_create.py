@@ -45,14 +45,42 @@ async def bulk_prepare(
     order_ids: List[str],
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
     order_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
     try:
         clear_old = await clean_old_data_prepared()
-        mask_image_path = "./images/masks/elephant_mask.png"
+        # mask_image_path = "./images/masks/elephant_mask.png"
         result = await db_ops.get_student_order(order_ids)
         if result:
             for order in result:
                 if "images" in order:
+                    if 'org_id' not in order:
+                        logger.error(f"Organization id not found in ORDER", exc_info=True)
+                        continue
+                        # raise HTTPException(
+                        #     status_code=404,
+                        #     detail={
+                        #         "message": "Org Id not found",
+                        #         "currentFrame": getframeinfo(currentframe()),
+                        #     },
+                        # )
+
+                    organization = await org_db_ops.get_by_id(order['org_id'])
+                    if 'green_mask' not in organization:
+                        logger.error(f"Mask not found in request", exc_info=True)
+                        continue
+                        # raise HTTPException(
+                        #     status_code=404,
+                        #     detail={
+                        #         "message": "Mask not found",
+                        #         "currentFrame": getframeinfo(currentframe()),
+                        #     },
+                        # )
+
+                    mask_data = organization['green_mask']
+                    if mask_data.startswith(b'data:image'):
+                        mask_data = mask_data.split(b',')[1]
+
                     for image in order["images"]:
                         size = image.split("_", 1)[0]
                         zip_folder1 = f"/mnt/data/student_module_zip_download1/temp_student_products/{size}"
@@ -61,16 +89,16 @@ async def bulk_prepare(
                         image_path = f"{zip_folder1}/{image}.png"
                         image_data = applyMask_and_removeBackground_file(
                             order["images"][image]["img_path"],
-                            mask_image_path,
+                            mask_data,
                             order["images"][image]["img_id"],
                             image_path
                         )
                         
-                        is_updated = await db_ops.update(order["user_id"], order["order_id"], "shipped")
-                        if is_updated:
-                            logger.info(f"Status updated : {image}")
-                        else:
-                            logger.error(f"Not able to update status, Error: {image}")
+                        # is_updated = await db_ops.update(order["user_id"], order["order_id"], "shipped")
+                        # if is_updated:
+                            # logger.info(f"Status updated : {image}")
+                        # else:
+                            # logger.error(f"Not able to update status, Error: {image}")
         zip_path = await generate_pdf_pre(background_tasks)
         if not os.path.exists(zip_path):
             return JSONResponse(
