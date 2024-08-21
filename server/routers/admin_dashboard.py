@@ -12,7 +12,7 @@ from typing import List
 from fastapi.responses import JSONResponse, FileResponse
 from inspect import currentframe, getframeinfo
 from database.BASE import BaseDatabaseOperation
-from fastapi import APIRouter, Body, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Body, HTTPException, BackgroundTasks, WebSocket
 from database.UserOperations import UserOperations
 from database.OrderOperations import OrderOperations
 from email_service.EmailService import EmailService
@@ -40,7 +40,7 @@ allowedUsers = [
 
 email_service = EmailService()
 HARD_CODED_PASSWORD = 'Drophouse23#'
-
+vector_task_storage = {}
 class DeleteRequest(BaseModel):
     user_id: str
     order_id: str
@@ -49,6 +49,7 @@ class DownloadRequest(BaseModel):
     password: str
     mode: str
     order_ids: list[str]
+    task_id: str
 
 class EmailRequest(BaseModel):
     to_mail: str
@@ -420,7 +421,7 @@ async def print_order(
         endpoint = "/orders"
         response = printful_request(endpoint, method="POST", data=order_data)
         if response:
-            is_updated = await db_ops.update(order_info.user_id, order_info.order_id, "prepared")
+            is_updated = await db_ops.update(order_info.user_id, order_info.order_id, "draft")
             if is_updated:
                 logger.info(f"Status updated /printful order_id: {order_info.order_id}")
             else:
@@ -469,6 +470,12 @@ async def download_student_verified_orders(
         raise HTTPException(status_code=403, detail="Invalid password")
     try:
         await clean_old_data()
+        vector_task_storage[request.task_id] = {
+            'success': 0,
+            'failed': 0,
+            'progress': 0,
+            'total': len(request.order_ids)
+        }
         mask_image_path = "./images/masks/elephant_mask.png"
         result = await db_ops.get_student_order(request.order_ids)
         if result:
@@ -476,22 +483,26 @@ async def download_student_verified_orders(
             for order in result:
                 if "images" in order:
                     for image in order["images"]:
-                        tasks.append(process_image(image, mask_image_path, order, request.mode, db_ops))
+                        tasks.append(process_image(image, mask_image_path, order, request.mode, db_ops, request.task_id))
             await asyncio.gather(*tasks, return_exceptions=True)
 
             zip_path = await generate_zip(background_tasks)  # Generate folder as zip and download
             if not os.path.exists(zip_path):
+                vector_task_storage.pop(request.task_id, None)
                 return JSONResponse(
                     content={"error": f"File not found: {zip_path}"}
                 )
 
+            vector_task_storage.pop(request.task_id, None)
             return FileResponse(zip_path, filename="student_products.zip")
         else:
+            vector_task_storage.pop(request.task_id, None)
             return JSONResponse(content=[])
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
         logger.error(f"Error in download_student_verified_orders: {str(e)}", exc_info=True)
+        # vector_task_storage.pop(request.task_id, None)
         raise HTTPException(
             status_code=500,
             detail={
@@ -502,7 +513,7 @@ async def download_student_verified_orders(
         )
 
 semaphore = asyncio.Semaphore(100)  # Limit to 100 concurrent tasks
-async def process_image(image, mask_image_path, order, mode, db_ops):
+async def process_image(image, mask_image_path, order, mode, db_ops, task_id):
     async with semaphore:
         try:
             image_data = await applyMask_and_removeBackground(
@@ -513,6 +524,7 @@ async def process_image(image, mask_image_path, order, mode, db_ops):
             result = await generate_vector_image(image_data, image, mode)
             if result:
                 logger.info(f"Vector Generated: {image}")
+                vector_task_storage[task_id]['success'] = vector_task_storage[task_id]['success'] + 1
                 if mode == 'production':  # Update order status
                     is_updated = await db_ops.update(order["user_id"], order["order_id"], "prepared")
                     if is_updated:
@@ -520,6 +532,23 @@ async def process_image(image, mask_image_path, order, mode, db_ops):
                     else:
                         logger.error(f"Not able to update status, Error: {image}")
             else:
+                vector_task_storage[task_id]['failed'] = vector_task_storage[task_id]['failed'] + 1
                 logger.error(f"Vector Error: {image}")
         except Exception as e:
+            vector_task_storage[task_id]['failed'] = vector_task_storage[task_id]['failed'] + 1
             logger.error(f"Error processing image {image}: {str(e)}", exc_info=True)
+
+@admin_dashboard_router.websocket("/ws/progress/{task_id}")
+async def websocket_progress(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+    try:
+        while True:
+            if task_id in vector_task_storage:
+                await websocket.send_json(vector_task_storage[task_id])
+            else:
+                break
+            await asyncio.sleep(1)
+    except Exception as e:
+        logger.info(f"WebSocket error: {e}")
+    finally:
+        await websocket.close()
