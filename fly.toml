@@ -1,4 +1,4 @@
-app = 'admin-server-drophouse-1'
+app = 'admin-server-drophouse'
 primary_region = 'ewr'
 
 [env]
@@ -13,6 +13,6 @@ PORT = "8080"
   processes = ['app']
 
 [[vm]]
-  memory = '2gb'
+  memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1

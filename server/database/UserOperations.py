@@ -67,6 +67,18 @@ class UserOperations(BaseDatabaseOperation):
                                     'img_id': '$$i.img_id',
                                     'prompt': '$$i.prompt',
                                     'price': '$$i.price',
+                                    'thumbnail': {
+                                        '$cond': {
+                                            'if': { '$or': [
+                                                { '$eq': [ '$$i.thumbnail', "false" ] },
+                                                { '$eq': [ '$$i.thumbnail', None ] },
+                                                { '$eq': [ '$$i.thumbnail', False ] },
+                                                { '$eq': [ '$$i.thumbnail', "null" ] }
+                                            ] },
+                                            'then': 'null',
+                                            'else': '$$i.thumbnail'
+                                        }
+                                    },
                                     'toggled': {
                                         '$cond': {
                                             # 'if': {'$eq': ['$$i.toggled', False]},
@@ -103,9 +115,12 @@ class UserOperations(BaseDatabaseOperation):
                     for item in order["item"]:
                         img_id = item["img_id"]
                         thumbnail_img_id = "t_" + img_id
-                        item["thumbnail"] = generate_presigned_url(
-                            thumbnail_img_id, "thumbnails-cart"
-                        )
+                        if item["thumbnail"] == "null":
+                            item["thumbnail"] = "null"
+                        else:
+                            item["thumbnail"] = generate_presigned_url(
+                                thumbnail_img_id, "thumbnails-cart"
+                            )
                         item["img_url"] = generate_presigned_url(
                             img_id, "browse-image-v2"
                         )
