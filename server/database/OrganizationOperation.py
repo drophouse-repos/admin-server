@@ -47,9 +47,7 @@ class OrganizationOperation(BaseDatabaseOperation):
 
     async def get_by_id(self, org_id: int):
         try:
-            logger.info(f"Fetching organization with ID: {org_id}")
             org_data = await self.db.organizations.find_one({"org_id": org_id}, {'_id': 0})
-            logger.info(f"Fetched organization data: {org_data}")
             return org_data
         except Exception as e:
             logger.error(f"Error retrieving organization with ID {org_id}: {e}")

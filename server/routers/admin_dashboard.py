@@ -12,6 +12,7 @@ from typing import List
 from fastapi.responses import JSONResponse, FileResponse
 from inspect import currentframe, getframeinfo
 from database.BASE import BaseDatabaseOperation
+from database.OrganizationOperation import OrganizationOperation
 from fastapi import APIRouter, Body, HTTPException, BackgroundTasks, WebSocket
 from database.UserOperations import UserOperations
 from database.OrderOperations import OrderOperations
@@ -259,11 +260,36 @@ async def update_bulk_order_status(
 async def print_order(
     order_info: OrderItem,
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
+    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
     try:
         printful_mapping = products_and_variants_map()
+        if not hasattr(order_info, 'org_id'):
+            logger.error(f"Organization id not found in request", exc_info=True)
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "message": "Org Id not found",
+                    "currentFrame": getframeinfo(currentframe()),
+                },
+            )
 
-        mask_image_path = "./images/masks/rh_mask.png"
+        organization = await org_db_ops.get_by_id(order_info.org_id)
+        if 'green_mask' not in organization:
+            logger.error(f"Mask not found in request", exc_info=True)
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "message": "Mask not found",
+                    "currentFrame": getframeinfo(currentframe()),
+                },
+            )
+
+        mask_data = organization['green_mask']
+        if mask_data.startswith(b'data:image'):
+            mask_data = mask_data.split(b',')[1]
+        
+        # mask_image_path = "./images/masks/rh_mask.png"
         shipping_info = order_info.shipping_info
         order_data = {
             "recipient": {
@@ -354,7 +380,7 @@ async def print_order(
                 else generate_presigned_url(item.img_id, "browse-image-v2")
             )
             image_data = await applyMask_and_removeBackground(
-                image_url, mask_image_path, item.img_id
+                image_url, mask_data, item.img_id
             )
 
             item_data = {
@@ -465,6 +491,7 @@ async def download_student_verified_orders(
     request: DownloadRequest,
     background_tasks: BackgroundTasks,
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
+    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
@@ -476,14 +503,39 @@ async def download_student_verified_orders(
             'progress': 0,
             'total': len(request.order_ids)
         }
-        mask_image_path = "./images/masks/elephant_mask.png"
+        # mask_image_path = "./images/masks/elephant_mask.png"
         result = await db_ops.get_student_order(request.order_ids)
         if result:
             tasks = []
             for order in result:
                 if "images" in order:
+                    if 'org_id' not in order:
+                        logger.error(f"Organization id not found in ORDER", exc_info=True)
+                        raise HTTPException(
+                            status_code=404,
+                            detail={
+                                "message": "Org Id not found",
+                                "currentFrame": getframeinfo(currentframe()),
+                            },
+                        )
+
+                    organization = await org_db_ops.get_by_id(order['org_id'])
+                    if 'green_mask' not in organization:
+                        logger.error(f"Mask not found in request", exc_info=True)
+                        raise HTTPException(
+                            status_code=404,
+                            detail={
+                                "message": "Mask not found",
+                                "currentFrame": getframeinfo(currentframe()),
+                            },
+                        )
+
+                    mask_data = organization['green_mask']
+                    if mask_data.startswith(b'data:image'):
+                        mask_data = mask_data.split(b',')[1]
+                    
                     for image in order["images"]:
-                        tasks.append(process_image(image, mask_image_path, order, request.mode, db_ops, request.task_id))
+                        tasks.append(process_image(image, mask_data, order, request.mode, db_ops, request.task_id))
             await asyncio.gather(*tasks, return_exceptions=True)
 
             zip_path = await generate_zip(background_tasks)  # Generate folder as zip and download
@@ -513,12 +565,12 @@ async def download_student_verified_orders(
         )
 
 semaphore = asyncio.Semaphore(100)  # Limit to 100 concurrent tasks
-async def process_image(image, mask_image_path, order, mode, db_ops, task_id):
+async def process_image(image, mask_data, order, mode, db_ops, task_id):
     async with semaphore:
         try:
             image_data = await applyMask_and_removeBackground(
                 order["images"][image]["img_path"],
-                mask_image_path,
+                mask_data,
                 order["images"][image]["img_id"],
             )
             result = await generate_vector_image(image_data, image, mode)
@@ -547,7 +599,7 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
                 await websocket.send_json(vector_task_storage[task_id])
             else:
                 break
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)
     except Exception as e:
         logger.info(f"WebSocket error: {e}")
     finally:

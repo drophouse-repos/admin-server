@@ -45,14 +45,42 @@ async def bulk_prepare(
     order_ids: List[str],
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
     order_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrderOperations)),
+    org_db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
     try:
         clear_old = await clean_old_data_prepared()
-        mask_image_path = "./images/masks/elephant_mask.png"
+        # mask_image_path = "./images/masks/elephant_mask.png"
         result = await db_ops.get_student_order(order_ids)
         if result:
             for order in result:
                 if "images" in order:
+                    if 'org_id' not in order:
+                        logger.error(f"Organization id not found in ORDER", exc_info=True)
+                        continue
+                        # raise HTTPException(
+                        #     status_code=404,
+                        #     detail={
+                        #         "message": "Org Id not found",
+                        #         "currentFrame": getframeinfo(currentframe()),
+                        #     },
+                        # )
+
+                    organization = await org_db_ops.get_by_id(order['org_id'])
+                    if 'green_mask' not in organization:
+                        logger.error(f"Mask not found in request", exc_info=True)
+                        continue
+                        # raise HTTPException(
+                        #     status_code=404,
+                        #     detail={
+                        #         "message": "Mask not found",
+                        #         "currentFrame": getframeinfo(currentframe()),
+                        #     },
+                        # )
+
+                    mask_data = organization['green_mask']
+                    if mask_data.startswith(b'data:image'):
+                        mask_data = mask_data.split(b',')[1]
+
                     for image in order["images"]:
                         size = image.split("_", 1)[0]
                         zip_folder1 = f"/mnt/data/student_module_zip_download1/temp_student_products/{size}"
@@ -61,16 +89,16 @@ async def bulk_prepare(
                         image_path = f"{zip_folder1}/{image}.png"
                         image_data = applyMask_and_removeBackground_file(
                             order["images"][image]["img_path"],
-                            mask_image_path,
+                            mask_data,
                             order["images"][image]["img_id"],
                             image_path
                         )
                         
-                        is_updated = await db_ops.update(order["user_id"], order["order_id"], "shipped")
-                        if is_updated:
-                            logger.info(f"Status updated : {image}")
-                        else:
-                            logger.error(f"Not able to update status, Error: {image}")
+                        # is_updated = await db_ops.update(order["user_id"], order["order_id"], "shipped")
+                        # if is_updated:
+                            # logger.info(f"Status updated : {image}")
+                        # else:
+                            # logger.error(f"Not able to update status, Error: {image}")
         zip_path = await generate_pdf_pre(background_tasks)
         if not os.path.exists(zip_path):
             return JSONResponse(
@@ -296,19 +324,14 @@ async def make_bulk_order(
     if request.password != HARD_CODED_PASSWORD:
         raise HTTPException(status_code=403, detail="Invalid password")
     try:
-        semaphore = asyncio.Semaphore(100)
-        retry_limit = max(len(request.file) // 2, min_retry)
-        # if not request.is_prompt:
-        #     generated_data = await generate_prompts(request.prompts, request.numImages)
-        #     response_data = await generate_images(generated_data)
-        # else:
-        #     response_data = await generate_images(request.prompts)
         ag_task_storage[request.task_id] = {
             'success': 0,
             'failed': 0,
             'progress': 0,
             'total': request.numImages
         }
+        semaphore = asyncio.Semaphore(100)
+        retry_limit = max(len(request.file) // 2, min_retry)
         if not request.is_prompt and not request.is_toggled:
             generated_data = await generate_prompts(request.prompts, request.numImages)
             response_data = await generate_images(generated_data,semaphore)
@@ -318,9 +341,9 @@ async def make_bulk_order(
             pass
 
         retry = 0
-        # user_data = request.file
-        # retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         tasks = []
+        file_data = request.file
+        # retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         for idx in range(len(request.file)):
             user_data = request.file[idx]
             if not request.is_toggled: 
@@ -414,8 +437,8 @@ async def make_bulk_order(
                         price=user_data['price']
                     )]
                 )
-                user_data['img_id'] = imageresponse[1]
-                user_data['prompt'] = imageresponse[2]
+                file_data[idx]['img_id'] = imageresponse[1]
+                file_data[idx]['prompt'] = imageresponse[2]
 
                 if 'order_id' in user_data:
                     result = await order_db_ops.update_order(order_model)
@@ -425,7 +448,8 @@ async def make_bulk_order(
                 else:
                     result = await order_db_ops.create_order(order_model)
                     if result:
-                        user_data['order_id'] = order_id
+                        file_data[idx]['order_id'] = order_id
+                        ag_task_storage[request.task_id]['success'] = ag_task_storage[request.task_id]['success'] + 1
                     else:
                         ag_task_storage[request.task_id]['failed'] = ag_task_storage[request.task_id]['failed'] + 1
                         raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
@@ -522,12 +546,14 @@ async def make_bulk_order(
                 else:
                     result = await order_db_ops.create_order(order_model)
                     if result:
-                        user_data['order_id'] = order_id
+                        file_data[idx]['order_id'] = order_id
+                        ag_task_storage[request.task_id]['success'] = ag_task_storage[request.task_id]['success'] + 1
                     else:
                         ag_task_storage[request.task_id]['failed'] = ag_task_storage[request.task_id]['success'] + 1
                         raise HTTPException(status_code=404, detail={'message': "Can't able to create an order", 'currentFrame': getframeinfo(currentframe())})
         await asyncio.gather(*tasks)
-        return request.file
+        ag_task_storage.pop(request.task_id, None)
+        return file_data
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
@@ -565,7 +591,7 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
                 await websocket.send_json(ag_task_storage[task_id])
             else:
                 break
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)
     except Exception as e:
         logger.info(f"WebSocket error: {e}")
     finally:

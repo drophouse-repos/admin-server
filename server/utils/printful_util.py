@@ -33,9 +33,25 @@ def image_to_base64(image_path):
         encoded_string = base64.b64encode(img_file.read())
         return encoded_string.decode("utf-8")
 
-async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
+async def applyMask_and_removeBackground(input_image_url, mask_data, img_id):
     try:
-        shape_image = Image.open(mask_path).convert("RGBA")
+        target_color = (82, 178, 38, 255)
+        ignore_colors = [(255,255,255,255), (255, 255, 255, 0), (0, 0, 0, 0)]
+
+        image_bytes = base64.b64decode(mask_data)
+        shape_image = Image.open(BytesIO(image_bytes)).convert("RGBA")
+        # shape_image = Image.open(mask_path).convert("RGBA")
+        
+        data = shape_image.getdata()
+        new_data = []
+        for idx, pixel in enumerate(data):
+            if pixel[:4] != target_color and pixel[:4] not in ignore_colors:
+                new_data.append(target_color)
+            else:
+                new_data.append(pixel)
+
+        shape_image.putdata(new_data)
+        # shape_image.save('./images/masks/test_mask.png')
 
         unique_id = uuid.uuid4()
         image_path = os.path.join(process_folder, f'{unique_id}.png')
@@ -46,7 +62,7 @@ async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
             background_image = Image.open(BytesIO(jpeg_data)).resize((512, 512)).convert("RGBA")
         else:
             async with httpx.AsyncClient() as client:
-                response = await client.get(input_image_url)
+                response = await client.get(input_image_url, timeout=10.0)
                 background_image = Image.open(BytesIO(response.content)).resize((512, 512)).convert("RGBA")
 
         if not background_image:
@@ -95,9 +111,12 @@ async def applyMask_and_removeBackground(input_image_url, mask_path, img_id):
             },
         )
 
-def applyMask_and_removeBackground_file(input_image_url, mask_path, img_id, image_path):
+def applyMask_and_removeBackground_file(input_image_url, mask_data, img_id, image_path):
     try:
-        shape_image = Image.open(mask_path).convert("RGBA")
+        # shape_image = Image.open(mask_path).convert("RGBA")
+        image_bytes = base64.b64decode(mask_data)
+        shape_image = Image.open(BytesIO(image_bytes)).convert("RGBA")
+        
         if 'data:image' in input_image_url:
             input_image_url = input_image_url.split(",")[1]
             jpeg_data = base64.b64decode(input_image_url)
