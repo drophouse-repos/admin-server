@@ -334,7 +334,9 @@ async def make_bulk_order(
         retry_limit = max(len(request.file) // 2, min_retry)
         if not request.is_prompt and not request.is_toggled:
             generated_data = await generate_prompts(request.prompts, request.numImages)
+            print('analysis of prompt data', len(request.file), len(generated_data))
             response_data = await generate_images(generated_data,semaphore)
+            print('analysis of image data', len(request.file), len(response_data))
         elif request.is_prompt and not request.is_toggled:
             response_data = await generate_images(request.prompts,semaphore)
         elif request.is_toggled:
@@ -346,7 +348,7 @@ async def make_bulk_order(
         # retry_limit = int(len(user_data)/2) if int(len(user_data)/2) > min_retry else min_retry
         for idx in range(len(request.file)):
             user_data = request.file[idx]
-            if not request.is_toggled: 
+            if not request.is_toggled:
                 imageresponse = response_data[idx]
                 if isinstance(imageresponse, Exception) or imageresponse is None:
                     if retry > retry_limit:
