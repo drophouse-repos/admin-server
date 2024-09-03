@@ -5,6 +5,7 @@ from inspect import currentframe, getframeinfo
 from db import get_db_ops
 from database.BASE import BaseDatabaseOperation
 from models.OrganizationModel import OrganizationModel
+from aws_utils import generate_presigned_url, processAndSaveImage
 from database.OrganizationOperation import OrganizationOperation
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
@@ -100,12 +101,56 @@ async def create_organisation(
 	request : OrganizationModel,
 	db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
-	try:
-		result = await db_ops.create(request)
-		return result;
-	except Exception as e:
-		logger.error(f"Error in creating Organization: {str(e)}", exc_info=True)
-		raise HTTPException(status_code=500, detail={'message':"Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
+    try:
+        org_bucket_name = 'browse-image-v2'
+        
+        # uploading base64 img to bucket and change it to img_id
+        org_id = request.org_id
+        org_mask = request.mask
+        if org_mask and org_mask.startswith("data:image"):
+            processAndSaveImage(org_mask, f"mask_{org_id}", org_bucket_name)
+            request.mask = f"mask_{org_id}"
+        org_logo = request.logo
+        if org_logo and org_logo.startswith("data:image"):
+            processAndSaveImage(org_logo, f"logo_{org_id}", org_bucket_name)
+            request.logo = f"logo_{org_id}"
+
+        org_gm = request.green_mask
+        if org_logo and org_logo.startswith("data:image"):
+            processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
+            request.green_mask = f"gm_{org_id}"
+        
+        org_favicon = request.favicon
+        if org_favicon and org_favicon.startswith("data:image"):
+            processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
+            request.favicon = f"favicon_{org_id}"
+
+        for products in request.landingpage:
+            if products.asset and products.asset.startswith("data:image"):
+                processAndSaveImage(products.asset, f"lp_{products.name}_{org_id}", org_bucket_name)
+                products.asset = f"lp_{products.name}_{org_id}"
+
+        for product in request.products:
+            if product.mask and product.mask.startswith("data:image"):
+                processAndSaveImage(product.mask, f"p_{product.name}_mask_{org_id}", org_bucket_name)
+                product.mask = f"p_{product.name}_mask_{org_id}"
+            if product.defaultProduct and product.defaultProduct.startswith("data:image"):
+                processAndSaveImage(product.defaultProduct, f"p_{product.name}_dp_{org_id}", org_bucket_name)
+                product.defaultProduct = f"p_{product.name}_dp_{org_id}"
+
+            for color in product.colors:
+                if product.colors[color].asset.front and product.colors[color].asset.front.startswith("data:image"):
+                    processAndSaveImage(product.colors[color].asset.front, f"pf_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.front = f"pf_{product.name}_{color}_{org_id}"
+                if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
+                    processAndSaveImage(product.colors[color].asset.back, f"pb_{product.name}_mask_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{product.name}_mask_{org_id}"
+
+        result = await db_ops.create(request)
+        return result;
+    except Exception as e:
+        logger.error(f"Error in creating Organization: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail={'message':"Internal Server Error", 'currentFrame': getframeinfo(currentframe()), 'detail': str(traceback.format_exc())})
 
 class OrgData(BaseModel):
     org_id: str
@@ -139,6 +184,50 @@ async def update_organisation(
         # existing_org = await db_ops.get_by_id(request)
         # if not existing_org:
         #     raise HTTPException(status_code=404, detail=f"Organization with ID not found")
+
+        org_bucket_name = 'browse-image-v2'
+        
+        # uploading base64 img to bucket and change it to img_id
+        org_id = request.org_id
+        org_mask = request.mask
+        if org_mask and org_mask.startswith("data:image"):
+            processAndSaveImage(org_mask, f"mask_{org_id}", org_bucket_name)
+            request.mask = f"mask_{org_id}"
+        org_logo = request.logo
+        if org_logo and org_logo.startswith("data:image"):
+            processAndSaveImage(org_logo, f"logo_{org_id}", org_bucket_name)
+            request.logo = f"logo_{org_id}"
+        
+        org_gm = request.green_mask
+        if org_logo and org_logo.startswith("data:image"):
+            processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
+            request.green_mask = f"gm_{org_id}"
+            
+        org_favicon = request.favicon
+        if org_favicon and org_favicon.startswith("data:image"):
+            processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
+            request.favicon = f"favicon_{org_id}"
+
+        for products in request.landingpage:
+            if products.asset and products.asset.startswith("data:image"):
+                processAndSaveImage(products.asset, f"lp_{products.name}_{org_id}", org_bucket_name)
+                products.asset = f"lp_{products.name}_{org_id}"
+
+        for product in request.products:
+            if product.mask and product.mask.startswith("data:image"):
+                processAndSaveImage(product.mask, f"p_{product.name}_mask_{org_id}", org_bucket_name)
+                product.mask = f"p_{product.name}_mask_{org_id}"
+            if product.defaultProduct and product.defaultProduct.startswith("data:image"):
+                processAndSaveImage(product.defaultProduct, f"p_{product.name}_dp_{org_id}", org_bucket_name)
+                product.defaultProduct = f"p_{product.name}_dp_{org_id}"
+
+            for color in product.colors:
+                if product.colors[color].asset.front and product.colors[color].asset.front.startswith("data:image"):
+                    processAndSaveImage(product.colors[color].asset.front, f"pf_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.front = f"pf_{product.name}_{color}_{org_id}"
+                if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
+                    processAndSaveImage(product.colors[color].asset.back, f"pb_{product.name}_mask_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{product.name}_mask_{org_id}"
 
         # Update the organization
         updated_org = await db_ops.update(request)
