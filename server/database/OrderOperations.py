@@ -104,7 +104,10 @@ class OrderOperations(BaseDatabaseOperation):
                 for item in order["item"]:
                     img_id = item["img_id"]
                     thumbnail_img_id = "t_" + img_id
-                    item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
+                    if item["thumbnail"] == 'null':
+                            item["thumbnail"] = 'null'
+                    else:
+                        item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
             return orders
         except Exception as e:
             logger.error(f"Error retrieving orders: {e}")
@@ -122,7 +125,10 @@ class OrderOperations(BaseDatabaseOperation):
                     if img_id:
                         # Generate the presigned URLs
                         thumbnail_img_id = "t_" + img_id
-                        item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
+                        if item["thumbnail"] == 'null':
+                            item["thumbnail"] = 'null'
+                        else:
+                            item["thumbnail"] = generate_presigned_url(thumbnail_img_id, "thumbnails-cart")
                         item["img_url"] = generate_presigned_url(img_id, "browse-image-v2")
             
             # Create an OrderItem instance from the modified raw_order
