@@ -38,7 +38,7 @@ class OrganizationModel(BaseModel):
     name: Optional[constr(min_length=1)] = Field(None, description="Organization name.")
     mask: Optional[str] = Field(None, description="Organization mask as Base64 encoded image.")
     logo: Optional[str] = Field(None, description="Organization logo as Base64 encoded image.")
-    green_mask: Optional[str] = Field(None, description="Organization Green Mask as Base64 encoded image.")
+    greenmask: Optional[str] = Field(None, description="Organization Green Mask as Base64 encoded image.")
     theme_color: Optional[constr(min_length=1)] = Field("#FF007F", description="Organization theme color.")
     font: Optional[constr(min_length=1)] = Field(None, description="Organization font.")
     favicon: Optional[str] = Field(None, description="Organization favicon.")

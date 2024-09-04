@@ -103,22 +103,22 @@ async def create_organisation(
 ):
     try:
         org_bucket_name = 'browse-image-v2'
-        
         # uploading base64 img to bucket and change it to img_id
         org_id = request.org_id
         org_mask = request.mask
         if org_mask and org_mask.startswith("data:image"):
             processAndSaveImage(org_mask, f"mask_{org_id}", org_bucket_name)
             request.mask = f"mask_{org_id}"
+
         org_logo = request.logo
         if org_logo and org_logo.startswith("data:image"):
             processAndSaveImage(org_logo, f"logo_{org_id}", org_bucket_name)
             request.logo = f"logo_{org_id}"
 
-        org_gm = request.green_mask
+        org_gm = request.greenmask
         if org_logo and org_logo.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
-            request.green_mask = f"gm_{org_id}"
+            request.greenmask = f"gm_{org_id}"
         
         org_favicon = request.favicon
         if org_favicon and org_favicon.startswith("data:image"):
@@ -198,10 +198,10 @@ async def update_organisation(
             processAndSaveImage(org_logo, f"logo_{org_id}", org_bucket_name)
             request.logo = f"logo_{org_id}"
         
-        org_gm = request.green_mask
+        org_gm = request.greenmask
         if org_logo and org_logo.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
-            request.green_mask = f"gm_{org_id}"
+            request.greenmask = f"gm_{org_id}"
             
         org_favicon = request.favicon
         if org_favicon and org_favicon.startswith("data:image"):
