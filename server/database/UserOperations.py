@@ -54,6 +54,7 @@ class UserOperations(BaseDatabaseOperation):
             pipeline = [
                 {
                     '$project': {
+                        '_id': 0,
                         'user_id': 1,
                         'order_id': 1,
                         'item': {
@@ -81,7 +82,6 @@ class UserOperations(BaseDatabaseOperation):
                                     },
                                     'toggled': {
                                         '$cond': {
-                                            # 'if': {'$eq': ['$$i.toggled', False]},
                                             'if': {
                                                         '$or': [
                                                             {'$eq': ['$$i.toggled', False]},
@@ -110,21 +110,6 @@ class UserOperations(BaseDatabaseOperation):
                 print(f'Duration : {duration}')
                 return []
             
-            for order in orders:
-                if "item" in order:
-                    for item in order["item"]:
-                        img_id = item["img_id"]
-                        thumbnail_img_id = "t_" + img_id
-                        if item["thumbnail"] == "null":
-                            item["thumbnail"] = "null"
-                        else:
-                            item["thumbnail"] = generate_presigned_url(
-                                thumbnail_img_id, "thumbnails-cart"
-                            )
-                        item["img_url"] = generate_presigned_url(
-                            img_id, "browse-image-v2"
-                        )
-
             duration = datetime.now() - start
             print(f'Duration : {duration}')
             return orders

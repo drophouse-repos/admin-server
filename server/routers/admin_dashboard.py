@@ -3,6 +3,7 @@ import logging
 import requests
 import asyncio
 import traceback
+import base64
 from db import get_db_ops
 from bson import json_util
 from fastapi import Depends
@@ -117,7 +118,8 @@ async def get_admin_orders(
 ):
     try:
         result = await db_ops.get_v2()
-        return JSONResponse(content=json_util.dumps(result))
+        # return JSONResponse(content=json_util.dumps(result))
+        return JSONResponse(content=result)
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
@@ -275,19 +277,7 @@ async def print_order(
             )
 
         organization = await org_db_ops.get_by_id(order_info.org_id)
-        if 'green_mask' not in organization:
-            logger.error(f"Mask not found in request", exc_info=True)
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    "message": "Mask not found",
-                    "currentFrame": getframeinfo(currentframe()),
-                },
-            )
-
-        mask_data = organization['green_mask']
-        if mask_data.startswith(b'data:image'):
-            mask_data = mask_data.split(b',')[1]
+        mask_data = process_mask_data(organization)
         
         # mask_image_path = "./images/masks/rh_mask.png"
         shipping_info = order_info.shipping_info
@@ -374,11 +364,13 @@ async def print_order(
                     },
                 )
 
+            print('item.toggled check', 'picking toggled url' if item.toggled else 'picking generated url')
             image_url = (
                 item.toggled
                 if item.toggled
                 else generate_presigned_url(item.img_id, "browse-image-v2")
             )
+            print('image url -> ', image_url)
             image_data = await applyMask_and_removeBackground(
                 image_url, mask_data, item.img_id
             )
@@ -520,19 +512,7 @@ async def download_student_verified_orders(
                         )
 
                     organization = await org_db_ops.get_by_id(order['org_id'])
-                    if 'green_mask' not in organization:
-                        logger.error(f"Mask not found in request", exc_info=True)
-                        raise HTTPException(
-                            status_code=404,
-                            detail={
-                                "message": "Mask not found",
-                                "currentFrame": getframeinfo(currentframe()),
-                            },
-                        )
-
-                    mask_data = organization['green_mask']
-                    if mask_data.startswith(b'data:image'):
-                        mask_data = mask_data.split(b',')[1]
+                    mask_data = process_mask_data(organization)
                     
                     for image in order["images"]:
                         tasks.append(process_image(image, mask_data, order, request.mode, db_ops, request.task_id))
@@ -604,3 +584,22 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
         logger.info(f"WebSocket error: {e}")
     finally:
         await websocket.close()
+
+def process_mask_data(organization):
+    mask_data = organization['green_mask'] if 'green_mask' in organization else organization['greenmask']
+
+    if isinstance(mask_data, bytes) and mask_data.startswith(b'data:image'):
+        mask_data = mask_data.split(b',')[1]
+    else:
+        try:
+            mask_data = generate_presigned_url(mask_data, "browse-image-v2")
+            response = requests.get(mask_data)
+            if response.status_code == 200:
+                mask_data = base64.b64encode(response.content)
+            else:
+                raise ValueError(f"Error downloading image. Status code: {response.status_code}")
+        except Exception as e:
+            print(f"Error processing mask data: {e}")
+            mask_data = None
+
+    return mask_data

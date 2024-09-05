@@ -102,7 +102,7 @@ async def create_organisation(
 	db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
     try:
-        org_bucket_name = 'browse-image-v2'
+        org_bucket_name = 'drophouse-skeleton-bucket'
         # uploading base64 img to bucket and change it to img_id
         org_id = request.org_id
         org_mask = request.mask
@@ -185,7 +185,7 @@ async def update_organisation(
         # if not existing_org:
         #     raise HTTPException(status_code=404, detail=f"Organization with ID not found")
 
-        org_bucket_name = 'browse-image-v2'
+        org_bucket_name = 'drophouse-skeleton-bucket'
         
         # uploading base64 img to bucket and change it to img_id
         org_id = request.org_id
