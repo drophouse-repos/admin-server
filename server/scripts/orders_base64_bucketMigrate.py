@@ -3,8 +3,8 @@ import asyncio
 import base64
 import sys
 import os
-from datetime import datetime, timedelta
 
+from datetime import datetime, timedelta
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import get_db_ops, connect_to_mongo, close_mongo_connection, get_database
 from database.BASE import BaseDatabaseOperation
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 s3_bucket_name = 'browse-image-v2'
-
+s3_thumbnail_bucket = "thumbnails-cart"
 class OrderMigration(BaseDatabaseOperation):
     def __init__(self, db):
         super().__init__(db)
@@ -34,10 +34,11 @@ class OrderMigration(BaseDatabaseOperation):
     
     async def start_migrate(self):
         start = datetime.now()
-        # orders = await self.db.orders.find({"order_id": "2832cfc8-ffab-4431-992a-f9271e8cd081"}, {'_id': 0}).to_list(length=None)
+        # orders = await self.db.orders.find({"order_id": "6d82786d-f3c7-477b-8a4a-a53a8469550d"}, {'_id': 0}).to_list(length=None)
         orders = await self.db.orders.find({}, {'_id': 0}).to_list(length=None)
         duration = datetime.now() - start
         print(f'Duration : {duration}')
+        print(len(orders))
 
         updated_orders = []  # To store updated order objects
         for order in orders:
@@ -52,7 +53,7 @@ class OrderMigration(BaseDatabaseOperation):
                         item['thumbnail'] = item['thumbnail'].decode('utf-8')
                     if item['thumbnail'] and item['thumbnail'].startswith("data:image"):
                         thumbnail_img_id = "t_" + img_id
-                        processAndSaveImage(item['thumbnail'], thumbnail_img_id, s3_bucket_name)
+                        processAndSaveImage(item['thumbnail'], thumbnail_img_id, s3_thumbnail_bucket)
                         item['thumbnail'] = thumbnail_img_id
 
                     if 'toggled' in item and isinstance(item['toggled'], bytes) and item.toggled.startswith(b'data:image'):
@@ -60,13 +61,13 @@ class OrderMigration(BaseDatabaseOperation):
                     if item['toggled'] and item['toggled'].startswith("data:image"):
                         toggled_img_id = "e_" + img_id
                         processAndSaveImage(item['toggled'], toggled_img_id, s3_bucket_name)
-                        item['thumbnail'] = True
+                        item['toggled'] = toggled_img_id
 
             # Convert to Pydantic model
             order_model = OrderItem(**order)
             order_data = order_model.model_dump()
 
-            print(order_data)
+            # print(order_data)
             # Update the order to the database
             result = await self.db.orders.update_one(
                 {"order_id": order_id},

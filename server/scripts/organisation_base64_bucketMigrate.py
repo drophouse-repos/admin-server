@@ -15,7 +15,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 s3_bucket_name = 'drophouse-skeleton-bucket'
-
 class OrganizationMigration(BaseDatabaseOperation):
     def __init__(self, db):
         super().__init__(db)
