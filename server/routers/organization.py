@@ -116,7 +116,7 @@ async def create_organisation(
             request.logo = f"logo_{org_id}"
 
         org_gm = request.greenmask
-        if org_logo and org_logo.startswith("data:image"):
+        if org_gm and org_gm.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
             request.greenmask = f"gm_{org_id}"
         
@@ -199,7 +199,7 @@ async def update_organisation(
             request.logo = f"logo_{org_id}"
         
         org_gm = request.greenmask
-        if org_logo and org_logo.startswith("data:image"):
+        if org_gm and org_gm.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
             request.greenmask = f"gm_{org_id}"
             
