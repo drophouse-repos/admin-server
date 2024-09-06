@@ -58,7 +58,7 @@ class OrderMigration(BaseDatabaseOperation):
 
                     if 'toggled' in item and isinstance(item['toggled'], bytes) and item.toggled.startswith(b'data:image'):
                         item['toggled'] = item['toggled'].decode('utf-8')
-                    if item['toggled'] and item['toggled'].startswith("data:image"):
+                    if item['toggled'] and type(item['toggled']) == str and item['toggled'].startswith("data:image"):
                         toggled_img_id = "e_" + img_id
                         processAndSaveImage(item['toggled'], toggled_img_id, s3_bucket_name)
                         item['toggled'] = toggled_img_id
