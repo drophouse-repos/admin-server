@@ -42,13 +42,29 @@ def processAndSaveImage(image_data: str, img_id: str, s3_bucket_name: str):
         image_bytes = base64.b64decode(image_data)
         image = Image.open(io.BytesIO(image_bytes))
 
-        # Convert image to RGB if necessary
+        # Handle different image modes
         if image.mode == "RGBA":
+            # Handle images with alpha channel (RGBA)
             background = Image.new("RGB", image.size, (255, 255, 255))
-            background.paste(image, mask=image.split()[3])  # 3 is the alpha channel
+            background.paste(image, mask=image.split()[3])  # Alpha channel
+            image = background
+        elif image.mode == "LA":  # Grayscale with alpha
+            # Convert LA to RGBA, then to RGB
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            background.paste(image.convert("RGBA"), mask=image.split()[1])  # Alpha channel
             image = background
         elif image.mode == "P":
-            image = image.convert("RGB")
+            # Convert palette images to RGBA if transparency exists
+            if "transparency" in image.info:
+                image = image.convert("RGBA")
+                background = Image.new("RGB", image.size, (255, 255, 255))
+                background.paste(image, mask=image.split()[3])  # Alpha channel
+                image = background
+            else:
+                # No transparency, convert directly to RGB
+                image = image.convert("RGB")
+        elif image.mode == "L":  # Grayscale without alpha
+            image = image.convert("RGB")  # Convert grayscale to RGB
 
         # Save the image to a buffer
         buffered = io.BytesIO()
