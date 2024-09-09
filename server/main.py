@@ -40,7 +40,8 @@ app.add_middleware(
         "http://localhost:3001",
         "http://localhost:3000", 
         "https://superman-kappa.vercel.app",
-        "https://admin-dashboard-dev-superman.vercel.app"
+        "https://admin-dashboard-dev-superman.vercel.app",
+        "https://admin-dashboard-dev-my-team-a6baf88d.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
