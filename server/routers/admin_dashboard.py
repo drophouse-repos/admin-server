@@ -592,7 +592,7 @@ def process_mask_data(organization):
         mask_data = mask_data.split(b',')[1]
     else:
         try:
-            mask_data = generate_presigned_url(mask_data, "browse-image-v2")
+            mask_data = generate_presigned_url(mask_data, "drophouse-skeleton")
             response = requests.get(mask_data)
             if response.status_code == 200:
                 mask_data = base64.b64encode(response.content)

@@ -3,13 +3,22 @@ import asyncio
 import base64
 import sys
 import os
+from PIL import Image
+import io
+import boto3
 
+import traceback
+from inspect import currentframe, getframeinfo
+from fastapi import HTTPException
+from botocore.exceptions import NoCredentialsError
+from botocore.client import Config
 from datetime import datetime, timedelta
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import get_db_ops, connect_to_mongo, close_mongo_connection, get_database
 from models.OrganizationModel import OrganizationModel
 from database.BASE import BaseDatabaseOperation
-from aws_utils import processAndSaveImage
+# from aws_utils import processAndSaveImage
+# from utils.printful_util import processAndSaveImage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -147,6 +156,57 @@ class OrganizationMigration(BaseDatabaseOperation):
 
         print('Organizations processed:', len(updated_organizations))
         return updated_organizations
+
+def processAndSaveImage(image_data: str, img_id: str, s3_bucket_name_: str):
+    try:
+        if "," in image_data:
+            image_data = image_data.split(",", 1)[1]
+        else:
+            raise ValueError("Invalid image data")
+
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # if image.mode == 'RGBA':
+        # image = image.convert('RGB')
+
+        buffered = io.BytesIO()
+        # image.save(buffered, format="JPEG", quality=85)
+        image.save(buffered, format="PNG", quality=100)
+        compressed_image_bytes = buffered.getvalue()
+        s3_client = boto3.client(
+            "s3", region_name="us-east-2", config=Config(signature_version="s3v4")
+        )
+
+        image_key = f"{img_id}.jpg"
+        s3_client.upload_fileobj(
+            io.BytesIO(compressed_image_bytes),
+            s3_bucket_name_,
+            image_key,
+            # ExtraArgs={"ACL": "public-read", "ContentType": "image/jpeg", "ContentDisposition": "inline"},
+            ExtraArgs={"ContentType": "image/png", "ContentDisposition": "inline"},
+        )
+
+        return True
+    except NoCredentialsError:
+        logger.error("No AWS credentials found")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Missing Credentials",
+                "currentFrame": getframeinfo(currentframe()),
+            },
+        )
+    except Exception as error:
+        logger.error(f"Error in processAndSaveImage: {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
 
 async def migrate_base64image_to_s3bucket(db_ops: OrganizationMigration):
     try:

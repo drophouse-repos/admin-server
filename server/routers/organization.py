@@ -5,7 +5,7 @@ from inspect import currentframe, getframeinfo
 from db import get_db_ops
 from database.BASE import BaseDatabaseOperation
 from models.OrganizationModel import OrganizationModel
-from aws_utils import generate_presigned_url, processAndSaveImage
+from aws_utils import generate_presigned_url #, processAndSaveImage
 from database.OrganizationOperation import OrganizationOperation
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
@@ -13,12 +13,69 @@ from bson import ObjectId
 from pydantic import BaseModel
 import httpx
 import base64
+import boto3
+import io
+from PIL import Image
+from botocore.exceptions import NoCredentialsError
+from botocore.client import Config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 org_router = APIRouter()
 HARD_CODED_PASSWORD = "Drophouse23#"
+
+
+def processAndSaveImage(image_data: str, img_id: str, s3_bucket_name_: str):
+    try:
+        if "," in image_data:
+            image_data = image_data.split(",", 1)[1]
+        else:
+            raise ValueError("Invalid image data")
+
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # if image.mode == 'RGBA':
+        # image = image.convert('RGB')
+
+        buffered = io.BytesIO()
+        # image.save(buffered, format="JPEG", quality=85)
+        image.save(buffered, format="PNG", quality=100)
+        compressed_image_bytes = buffered.getvalue()
+        s3_client = boto3.client(
+            "s3", region_name="us-east-2", config=Config(signature_version="s3v4")
+        )
+
+        image_key = f"{img_id}.jpg"
+        s3_client.upload_fileobj(
+            io.BytesIO(compressed_image_bytes),
+            s3_bucket_name_,
+            image_key,
+            # ExtraArgs={"ACL": "public-read", "ContentType": "image/jpeg", "ContentDisposition": "inline"},
+            ExtraArgs={"ContentType": "image/png", "ContentDisposition": "inline"},
+        )
+
+        return True
+    except NoCredentialsError:
+        logger.error("No AWS credentials found")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Missing Credentials",
+                "currentFrame": getframeinfo(currentframe()),
+            },
+        )
+    except Exception as error:
+        logger.error(f"Error in processAndSaveImage: {error}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Internal Server Error",
+                "currentFrame": getframeinfo(currentframe()),
+                "detail": str(traceback.format_exc()),
+            },
+        )
 
 @org_router.post("/organisation_list")
 async def organisation_list(
@@ -203,7 +260,7 @@ async def update_organisation(
         if org_gm and org_gm.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
             request.greenmask = f"gm_{org_id}"
-            
+
         org_favicon = request.favicon
         if org_favicon and org_favicon.startswith("data:image"):
             processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
