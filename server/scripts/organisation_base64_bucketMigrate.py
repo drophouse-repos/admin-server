@@ -14,7 +14,7 @@ from aws_utils import processAndSaveImage
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-s3_bucket_name = 'drophouse-skeleton-bucket'
+s3_bucket_name = 'drophouse-skeleton'
 class OrganizationMigration(BaseDatabaseOperation):
     def __init__(self, db):
         super().__init__(db)
@@ -87,6 +87,14 @@ class OrganizationMigration(BaseDatabaseOperation):
                     if product['asset'] and product['asset'].startswith("data:image"):
                         processAndSaveImage(product['asset'], f"lp_{product['name']}_{org_id}", s3_bucket_name)
                         product['asset'] = f"lp_{product['name']}_{org_id}"
+
+                    if 'asset_back' not in product:
+                        print('Missing asset_back org_id:', org_id)
+                    if 'asset_back' in product and isinstance(product['asset_back'], bytes) and product['asset_back'].startswith(b'data:image'):
+                        product['asset_back'] = product['asset_back'].decode('utf-8')
+                    if 'asset_back' in product and product['asset_back'] and product['asset_back'].startswith("data:image"):
+                        processAndSaveImage(product['asset_back'], f"lp_{product['name']}_{org_id}", s3_bucket_name)
+                        product['asset_back'] = f"lp_{product['name']}_{org_id}"
 
             # Process product details
             if 'products' in org:

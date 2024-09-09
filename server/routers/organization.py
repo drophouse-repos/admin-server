@@ -102,8 +102,7 @@ async def create_organisation(
 	db_ops: BaseDatabaseOperation = Depends(get_db_ops(OrganizationOperation)),
 ):
     try:
-        org_bucket_name = 'drophouse-skeleton-bucket'
-        # uploading base64 img to bucket and change it to img_id
+        org_bucket_name = 'drophouse-skeleton'
         org_id = request.org_id
         org_mask = request.mask
         if org_mask and org_mask.startswith("data:image"):
@@ -129,6 +128,9 @@ async def create_organisation(
             if products.asset and products.asset.startswith("data:image"):
                 processAndSaveImage(products.asset, f"lp_{products.name}_{org_id}", org_bucket_name)
                 products.asset = f"lp_{products.name}_{org_id}"
+            if products.asset_back and products.asset_back.startswith("data:image"):
+                processAndSaveImage(products.asset_back, f"lp_ab{products.name}_{org_id}", org_bucket_name)
+                products.asset_back = f"lp_ab{products.name}_{org_id}"
 
         for product in request.products:
             if product.mask and product.mask.startswith("data:image"):
@@ -185,8 +187,7 @@ async def update_organisation(
         # if not existing_org:
         #     raise HTTPException(status_code=404, detail=f"Organization with ID not found")
 
-        org_bucket_name = 'drophouse-skeleton-bucket'
-        
+        org_bucket_name = 'drophouse-skeleton'
         # uploading base64 img to bucket and change it to img_id
         org_id = request.org_id
         org_mask = request.mask
@@ -212,6 +213,9 @@ async def update_organisation(
             if products.asset and products.asset.startswith("data:image"):
                 processAndSaveImage(products.asset, f"lp_{products.name}_{org_id}", org_bucket_name)
                 products.asset = f"lp_{products.name}_{org_id}"
+            if products.asset_back and products.asset_back.startswith("data:image"):
+                processAndSaveImage(products.asset_back, f"lp_ab{products.name}_{org_id}", org_bucket_name)
+                products.asset_back = f"lp_ab{products.name}_{org_id}"
 
         for product in request.products:
             if product.mask and product.mask.startswith("data:image"):
