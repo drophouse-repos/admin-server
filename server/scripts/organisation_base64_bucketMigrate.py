@@ -46,12 +46,16 @@ class OrganizationMigration(BaseDatabaseOperation):
         organizations = await self.db.organizations.find({}, {'_id': 0}).to_list(length=None)
         duration = datetime.now() - start
         print(f'Duration : {duration}')
-        
+        print(len(organizations))
+
         updated_organizations = []  # To store updated organization objects
         for org in organizations:
             org_id = org['org_id']
             print('Processing org_id:', org_id)
             
+            if 'products' not in org or 'landingpage' not in org:
+                continue
+                
             # Process mask
             if 'mask' in org:
                 org_mask = org['mask']
