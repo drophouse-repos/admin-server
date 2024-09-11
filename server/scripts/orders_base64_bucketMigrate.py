@@ -34,8 +34,14 @@ class OrderMigration(BaseDatabaseOperation):
     
     async def start_migrate(self):
         start = datetime.now()
-        # orders = await self.db.orders.find({"order_id": "6d82786d-f3c7-477b-8a4a-a53a8469550d"}, {'_id': 0}).to_list(length=None)
+        query = {
+            "$or": [
+                {"item.thumbnail": {"$regex": "^data:image"}},
+                {"item.toggled": {"$regex": "^data:image"}}
+            ]
+        }
         orders = await self.db.orders.find({}, {'_id': 0}).to_list(length=None)
+        # orders = await self.db.orders.find(query, {'_id': 0}).to_list(length=None)
         duration = datetime.now() - start
         print(f'Duration : {duration}')
         print(len(orders))

@@ -31,7 +31,7 @@ class Product(BaseModel):
 class LandingPage(BaseModel):
     name: constr(min_length=1) = Field(..., description="Product name is required.")
     asset: str = Field(..., description="Front asset is required.")
-    asset_back: str
+    asset_back: Optional[str] = Field(None, description="Organization LandingPage asset_back.")
 
 class OrganizationModel(BaseModel):
     org_id: constr(min_length=1) = Field(..., description="Organization ID is required.")
