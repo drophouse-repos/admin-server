@@ -154,8 +154,10 @@ class UserOperations(BaseDatabaseOperation):
                     if "item" in order:
                         for item in order["item"]:
                             img_id = item["img_id"]
-                            if "toggled" in item and item["toggled"] != False:
-                                item["img_url"] = item["toggled"]
+                            if "toggled" in item and item["toggled"] != False and item["toggled"] != 'FALSE' and item["toggled"] != 'NULL':
+                                item["img_url"] = generate_presigned_url(
+                                    item["toggled"], "browse-image-v2"
+                                )
                             else:
                                 item["img_url"] = generate_presigned_url(
                                     img_id, "browse-image-v2"
