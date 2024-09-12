@@ -66,20 +66,10 @@ async def bulk_prepare(
                         # )
 
                     organization = await org_db_ops.get_by_id(order['org_id'])
-                    if 'green_mask' not in organization:
-                        logger.error(f"Mask not found in request", exc_info=True)
-                        continue
-                        # raise HTTPException(
-                        #     status_code=404,
-                        #     detail={
-                        #         "message": "Mask not found",
-                        #         "currentFrame": getframeinfo(currentframe()),
-                        #     },
-                        # )
-
-                    mask_data = organization['green_mask']
-                    if mask_data.startswith(b'data:image'):
-                        mask_data = mask_data.split(b',')[1]
+                    mask_data = process_mask_data(organization)
+                    # mask_data = organization['green_mask']
+                    # if mask_data.startswith(b'data:image'):
+                    #     mask_data = mask_data.split(b',')[1]
 
                     for image in order["images"]:
                         size = image.split("_", 1)[0]
@@ -598,3 +588,22 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
         logger.info(f"WebSocket error: {e}")
     finally:
         await websocket.close()
+
+def process_mask_data(organization):
+    mask_data = organization['green_mask'] if 'green_mask' in organization else organization['greenmask']
+
+    if isinstance(mask_data, bytes) and mask_data.startswith(b'data:image'):
+        mask_data = mask_data.split(b',')[1]
+    else:
+        try:
+            mask_data = generate_presigned_url(mask_data, "drophouse-skeleton")
+            response = requests.get(mask_data)
+            if response.status_code == 200:
+                mask_data = base64.b64encode(response.content)
+            else:
+                raise ValueError(f"Error downloading image. Status code: {response.status_code}")
+        except Exception as e:
+            print(f"Error processing mask data: {e}")
+            mask_data = None
+
+    return mask_data
