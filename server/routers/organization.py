@@ -181,29 +181,33 @@ async def create_organisation(
             processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
             request.favicon = f"favicon_{org_id}"
 
+        counter = 0
         for products in request.landingpage:
+            counter += 1
             if products.asset and products.asset.startswith("data:image"):
-                processAndSaveImage(products.asset, f"lp_{products.name}_{org_id}", org_bucket_name)
-                products.asset = f"lp_{products.name}_{org_id}"
+                processAndSaveImage(products.asset, f"lp_{counter}_{products.name}_{org_id}", org_bucket_name)
+                products.asset = f"lp_{counter}_{products.name}_{org_id}"
             if products.asset_back and products.asset_back.startswith("data:image"):
-                processAndSaveImage(products.asset_back, f"lp_ab{products.name}_{org_id}", org_bucket_name)
-                products.asset_back = f"lp_ab{products.name}_{org_id}"
+                processAndSaveImage(products.asset_back, f"lp_ab_{counter}_{products.name}_{org_id}", org_bucket_name)
+                products.asset_back = f"lp_ab_{counter}_{products.name}_{org_id}"
 
+        counter = 0
         for product in request.products:
+            counter += 1
             if product.mask and product.mask.startswith("data:image"):
-                processAndSaveImage(product.mask, f"p_{product.name}_mask_{org_id}", org_bucket_name)
-                product.mask = f"p_{product.name}_mask_{org_id}"
+                processAndSaveImage(product.mask, f"p_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
+                product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
             if product.defaultProduct and product.defaultProduct.startswith("data:image"):
-                processAndSaveImage(product.defaultProduct, f"p_{product.name}_dp_{org_id}", org_bucket_name)
-                product.defaultProduct = f"p_{product.name}_dp_{org_id}"
+                processAndSaveImage(product.defaultProduct, f"p_{counter}_{product.name}_dp_{org_id}", org_bucket_name)
+                product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
 
             for color in product.colors:
                 if product.colors[color].asset.front and product.colors[color].asset.front.startswith("data:image"):
-                    processAndSaveImage(product.colors[color].asset.front, f"pf_{product.name}_{color}_{org_id}", org_bucket_name)
-                    product.colors[color].asset.front = f"pf_{product.name}_{color}_{org_id}"
+                    processAndSaveImage(product.colors[color].asset.front, f"pf_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
                 if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
-                    processAndSaveImage(product.colors[color].asset.back, f"pb_{product.name}_mask_{org_id}", org_bucket_name)
-                    product.colors[color].asset.back = f"pb_{product.name}_mask_{org_id}"
+                    processAndSaveImage(product.colors[color].asset.back, f"pb_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{counter}_{product.name}_mask_{org_id}"
 
         result = await db_ops.create(request)
         return result;
@@ -266,29 +270,33 @@ async def update_organisation(
             processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
             request.favicon = f"favicon_{org_id}"
 
+        counter = 0
         for products in request.landingpage:
+            counter += 1
             if products.asset and products.asset.startswith("data:image"):
-                processAndSaveImage(products.asset, f"lp_{products.name}_{org_id}", org_bucket_name)
-                products.asset = f"lp_{products.name}_{org_id}"
+                processAndSaveImage(products.asset, f"lp_{counter}_{products.name}_{org_id}", org_bucket_name)
+                products.asset = f"lp_{counter}_{products.name}_{org_id}"
             if products.asset_back and products.asset_back.startswith("data:image"):
-                processAndSaveImage(products.asset_back, f"lp_ab{products.name}_{org_id}", org_bucket_name)
-                products.asset_back = f"lp_ab{products.name}_{org_id}"
+                processAndSaveImage(products.asset_back, f"lp_ab_{counter}_{products.name}_{org_id}", org_bucket_name)
+                products.asset_back = f"lp_ab_{counter}_{products.name}_{org_id}"
 
+        counter = 0
         for product in request.products:
+            counter += 1
             if product.mask and product.mask.startswith("data:image"):
-                processAndSaveImage(product.mask, f"p_{product.name}_mask_{org_id}", org_bucket_name)
-                product.mask = f"p_{product.name}_mask_{org_id}"
+                processAndSaveImage(product.mask, f"p_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
+                product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
             if product.defaultProduct and product.defaultProduct.startswith("data:image"):
-                processAndSaveImage(product.defaultProduct, f"p_{product.name}_dp_{org_id}", org_bucket_name)
-                product.defaultProduct = f"p_{product.name}_dp_{org_id}"
+                processAndSaveImage(product.defaultProduct, f"p_{counter}_{product.name}_dp_{org_id}", org_bucket_name)
+                product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
 
             for color in product.colors:
                 if product.colors[color].asset.front and product.colors[color].asset.front.startswith("data:image"):
-                    processAndSaveImage(product.colors[color].asset.front, f"pf_{product.name}_{color}_{org_id}", org_bucket_name)
-                    product.colors[color].asset.front = f"pf_{product.name}_{color}_{org_id}"
+                    processAndSaveImage(product.colors[color].asset.front, f"pf_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
                 if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
-                    processAndSaveImage(product.colors[color].asset.back, f"pb_{product.name}_mask_{org_id}", org_bucket_name)
-                    product.colors[color].asset.back = f"pb_{product.name}_mask_{org_id}"
+                    processAndSaveImage(product.colors[color].asset.back, f"pb_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{counter}_{product.name}_mask_{org_id}"
 
         # Update the organization
         updated_org = await db_ops.update(request)
