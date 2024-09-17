@@ -295,8 +295,8 @@ async def update_organisation(
                     processAndSaveImage(product.colors[color].asset.front, f"pf_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
                     product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
                 if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
-                    processAndSaveImage(product.colors[color].asset.back, f"pb_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
-                    product.colors[color].asset.back = f"pb_{counter}_{product.name}_mask_{org_id}"
+                    processAndSaveImage(product.colors[color].asset.back, f"pb_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{counter}_{product.name}_{color}_{org_id}"
 
         # Update the organization
         updated_org = await db_ops.update(request)
