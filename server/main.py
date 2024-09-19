@@ -36,13 +36,8 @@ email_service = EmailService()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://admin-dashboard-test-superman.vercel.app",
-        "http://localhost:3001",
-        "http://localhost:3000", 
-        "https://superman-kappa.vercel.app",
-        "https://admin-dashboard-dev-superman.vercel.app",
-        "https://admin-dashboard-dev-my-team-a6baf88d.vercel.app"
     ],
+    allow_origin_regex=r".*\.drophouse\.ai$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
