@@ -197,6 +197,9 @@ async def create_organisation(
             if product.mask and product.mask.startswith("data:image"):
                 processAndSaveImage(product.mask, f"p_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
                 product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
+            if product.greenmask and product.greenmask.startswith("data:image"):
+                processAndSaveImage(product.greenmask, f"p_{counter}_{product.name}_greenmask_{org_id}", org_bucket_name)
+                product.greenmask = f"p_{counter}_{product.name}_greenmask_{org_id}"
             if product.defaultProduct and product.defaultProduct.startswith("data:image"):
                 processAndSaveImage(product.defaultProduct, f"p_{counter}_{product.name}_dp_{org_id}", org_bucket_name)
                 product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
@@ -286,6 +289,9 @@ async def update_organisation(
             if product.mask and product.mask.startswith("data:image"):
                 processAndSaveImage(product.mask, f"p_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
                 product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
+            if product.greenmask and product.greenmask.startswith("data:image"):
+                processAndSaveImage(product.greenmask, f"p_{counter}_{product.name}_greenmask_{org_id}", org_bucket_name)
+                product.greenmask = f"p_{counter}_{product.name}_greenmask_{org_id}"
             if product.defaultProduct and product.defaultProduct.startswith("data:image"):
                 processAndSaveImage(product.defaultProduct, f"p_{counter}_{product.name}_dp_{org_id}", org_bucket_name)
                 product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
