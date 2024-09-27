@@ -276,9 +276,22 @@ async def print_order(
                 },
             )
 
-        organization = await org_db_ops.get_by_id(order_info.org_id)
-        mask_data = process_mask_data(organization)
+        if not hasattr(order_info, 'greenmask'):
+            organization = await org_db_ops.get_by_id(order_info.org_id)
+            mask_data = process_mask_data(organization, False)
+        else:
+            mask_data = process_mask_data(order_info.greenmask, True)
         
+        if not mask_data or mask_data == None:
+            logger.error(f"Green mask not found in request", exc_info=True)
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "message": "Green mask not found",
+                    "currentFrame": getframeinfo(currentframe()),
+                },
+            )
+
         # mask_image_path = "./images/masks/rh_mask.png"
         shipping_info = order_info.shipping_info
         order_data = {
@@ -511,11 +524,25 @@ async def download_student_verified_orders(
                             },
                         )
 
-                    organization = await org_db_ops.get_by_id(order['org_id'])
-                    mask_data = process_mask_data(organization)
+                    if 'greenmask' not in order_info:
+                        organization = await org_db_ops.get_by_id(order_info['org_id'])
+                        mask_data = process_mask_data(organization, False)
+                    else:
+                        mask_data = process_mask_data(order_info['greenmask'], True)
+                    
+                    if not mask_data or mask_data == None:
+                        logger.error(f"Green mask not found in request", exc_info=True)
+                        raise HTTPException(
+                            status_code=404,
+                            detail={
+                                "message": "Green mask not found",
+                                "currentFrame": getframeinfo(currentframe()),
+                            },
+                        )
                     
                     for image in order["images"]:
                         tasks.append(process_image(image, mask_data, order, request.mode, db_ops, request.task_id))
+            
             await asyncio.gather(*tasks, return_exceptions=True)
 
             zip_path = await generate_zip(background_tasks)  # Generate folder as zip and download
@@ -585,9 +612,18 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
     finally:
         await websocket.close()
 
-def process_mask_data(organization):
-    mask_data = organization['green_mask'] if 'green_mask' in organization else organization['greenmask']
-
+def process_mask_data(organization, isImgId):
+    if not isImgId:
+        if 'greenmask' in organization:
+            mask_data = organization['greenmask']
+        else:
+            return None
+    else:
+        if organization != None and organization != "":
+            mask_data = organization
+        else:
+            return None
+    
     if isinstance(mask_data, bytes) and mask_data.startswith(b'data:image'):
         mask_data = mask_data.split(b',')[1]
     else:

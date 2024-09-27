@@ -110,6 +110,25 @@ class UserOperations(BaseDatabaseOperation):
                 print(f'Duration : {duration}')
                 return []
             
+            for order in orders:
+                if "item" in order:
+                    for item in order["item"]:
+                        img_id = item["img_id"]
+                        thumbnail_img_id = "t_" + img_id
+                        if item["thumbnail"] == "null":
+                            item["thumbnail"] = "null"
+                        else:
+                            item["thumbnail"] = generate_presigned_url(
+                                thumbnail_img_id, "thumbnails-cart"
+                            )
+                        item["img_url"] = generate_presigned_url(
+                            img_id, "browse-image-v2"
+                        )
+                        if item["toggled"] == 'true' or item['toggled'] == True or item['toggled'] == 'True':
+                            item["toggled"] = generate_presigned_url(
+                                "e_" + img_id, "browse-image-v2"
+                            )
+
             duration = datetime.now() - start
             print(f'Duration : {duration}')
             return orders
