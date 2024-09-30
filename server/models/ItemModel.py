@@ -1,10 +1,5 @@
 import datetime
-from pydantic import (
-    StringConstraints,
-    BaseModel,
-    Field,
-    conint,
-)  # , EmailStr, validator
+from pydantic import StringConstraints, BaseModel, Field, conint  # , EmailStr, validator
 from typing import Optional, Union
 from typing_extensions import Annotated
 
@@ -34,6 +29,9 @@ class ItemModel(BaseModel):
     )
     toggled: Optional[Union[str, bool]] = Field(
         None, alias="toggled", description="Toggled is optional."
+    )
+    greenmask: Optional[str] = Field(
+        None, alias="greenmask", description="Product green mask."
     )
     price: Annotated[int, conint(ge=1)] = Field(
         ..., alias="price", description="price is required."

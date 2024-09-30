@@ -165,20 +165,28 @@ async def create_organisation(
         if org_mask and org_mask.startswith("data:image"):
             processAndSaveImage(org_mask, f"mask_{org_id}", org_bucket_name)
             request.mask = f"mask_{org_id}"
+        elif org_mask and (org_mask.startswith("http://") or org_mask.startswith("https://")):
+            request.mask = f"mask_{org_id}"
 
         org_logo = request.logo
         if org_logo and org_logo.startswith("data:image"):
             processAndSaveImage(org_logo, f"logo_{org_id}", org_bucket_name)
+            request.logo = f"logo_{org_id}"
+        elif org_logo and (org_logo.startswith("http://") or org_logo.startswith("https://")):
             request.logo = f"logo_{org_id}"
 
         org_gm = request.greenmask
         if org_gm and org_gm.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
             request.greenmask = f"gm_{org_id}"
+        elif org_gm and (org_gm.startswith("http://") or org_gm.startswith("https://")):
+            request.greenmask = f"gm_{org_id}"
         
         org_favicon = request.favicon
         if org_favicon and org_favicon.startswith("data:image"):
             processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
+            request.favicon = f"favicon_{org_id}"
+        elif org_favicon and (org_favicon.startswith("http://") or org_favicon.startswith("https://")):
             request.favicon = f"favicon_{org_id}"
 
         counter = 0
@@ -187,8 +195,13 @@ async def create_organisation(
             if products.asset and products.asset.startswith("data:image"):
                 processAndSaveImage(products.asset, f"lp_{counter}_{products.name}_{org_id}", org_bucket_name)
                 products.asset = f"lp_{counter}_{products.name}_{org_id}"
+            elif products.asset and (products.asset.startswith("http://") or products.asset.startswith("https://")):
+                products.asset = f"lp_{counter}_{products.name}_{org_id}"
+
             if products.asset_back and products.asset_back.startswith("data:image"):
                 processAndSaveImage(products.asset_back, f"lp_ab_{counter}_{products.name}_{org_id}", org_bucket_name)
+                products.asset_back = f"lp_ab_{counter}_{products.name}_{org_id}"
+            elif products.asset_back and (products.asset_back.startswith("http://") or products.asset_back.startswith("https://")):
                 products.asset_back = f"lp_ab_{counter}_{products.name}_{org_id}"
 
         counter = 0
@@ -197,19 +210,32 @@ async def create_organisation(
             if product.mask and product.mask.startswith("data:image"):
                 processAndSaveImage(product.mask, f"p_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
                 product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
+            elif product.mask and (product.mask.startswith("http://") or product.mask.startswith("https://")):
+                product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
+            
             if product.greenmask and product.greenmask.startswith("data:image"):
                 processAndSaveImage(product.greenmask, f"p_{counter}_{product.name}_greenmask_{org_id}", org_bucket_name)
                 product.greenmask = f"p_{counter}_{product.name}_greenmask_{org_id}"
+            elif product.greenmask and (product.greenmask.startswith("http://") or product.greenmask.startswith("https://")):
+                product.greenmask = f"p_{counter}_{product.name}_greenmask_{org_id}"
+            
             if product.defaultProduct and product.defaultProduct.startswith("data:image"):
                 processAndSaveImage(product.defaultProduct, f"p_{counter}_{product.name}_dp_{org_id}", org_bucket_name)
+                product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
+            elif product.defaultProduct and (product.defaultProduct.startswith("http://") or product.defaultProduct.startswith("https://")):
                 product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
 
             for color in product.colors:
                 if product.colors[color].asset.front and product.colors[color].asset.front.startswith("data:image"):
                     processAndSaveImage(product.colors[color].asset.front, f"pf_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
                     product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
+                elif product.colors[color].asset.front and (product.colors[color].asset.front.startswith("http://") or product.colors[color].asset.front.startswith("https://")):
+                    product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
+                
                 if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
                     processAndSaveImage(product.colors[color].asset.back, f"pb_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{counter}_{product.name}_{color}_{org_id}"
+                elif product.colors[color].asset.back and (product.colors[color].asset.back.startswith("http://") or product.colors[color].asset.back.startswith("https://")):
                     product.colors[color].asset.back = f"pb_{counter}_{product.name}_{color}_{org_id}"
 
         result = await db_ops.create(request)
@@ -258,19 +284,28 @@ async def update_organisation(
         if org_mask and org_mask.startswith("data:image"):
             processAndSaveImage(org_mask, f"mask_{org_id}", org_bucket_name)
             request.mask = f"mask_{org_id}"
+        elif org_mask and (org_mask.startswith("http://") or org_mask.startswith("https://")):
+            request.mask = f"mask_{org_id}"
+
         org_logo = request.logo
         if org_logo and org_logo.startswith("data:image"):
             processAndSaveImage(org_logo, f"logo_{org_id}", org_bucket_name)
             request.logo = f"logo_{org_id}"
-        
+        elif org_logo and (org_logo.startswith("http://") or org_logo.startswith("https://")):
+            request.logo = f"logo_{org_id}"
+
         org_gm = request.greenmask
         if org_gm and org_gm.startswith("data:image"):
             processAndSaveImage(org_gm, f"gm_{org_id}", org_bucket_name)
             request.greenmask = f"gm_{org_id}"
-
+        elif org_gm and (org_gm.startswith("http://") or org_gm.startswith("https://")):
+            request.greenmask = f"gm_{org_id}"
+        
         org_favicon = request.favicon
         if org_favicon and org_favicon.startswith("data:image"):
             processAndSaveImage(org_favicon, f"favicon_{org_id}", org_bucket_name)
+            request.favicon = f"favicon_{org_id}"
+        elif org_favicon and (org_favicon.startswith("http://") or org_favicon.startswith("https://")):
             request.favicon = f"favicon_{org_id}"
 
         counter = 0
@@ -279,8 +314,13 @@ async def update_organisation(
             if products.asset and products.asset.startswith("data:image"):
                 processAndSaveImage(products.asset, f"lp_{counter}_{products.name}_{org_id}", org_bucket_name)
                 products.asset = f"lp_{counter}_{products.name}_{org_id}"
+            elif products.asset and (products.asset.startswith("http://") or products.asset.startswith("https://")):
+                products.asset = f"lp_{counter}_{products.name}_{org_id}"
+
             if products.asset_back and products.asset_back.startswith("data:image"):
                 processAndSaveImage(products.asset_back, f"lp_ab_{counter}_{products.name}_{org_id}", org_bucket_name)
+                products.asset_back = f"lp_ab_{counter}_{products.name}_{org_id}"
+            elif products.asset_back and (products.asset_back.startswith("http://") or products.asset_back.startswith("https://")):
                 products.asset_back = f"lp_ab_{counter}_{products.name}_{org_id}"
 
         counter = 0
@@ -289,19 +329,32 @@ async def update_organisation(
             if product.mask and product.mask.startswith("data:image"):
                 processAndSaveImage(product.mask, f"p_{counter}_{product.name}_mask_{org_id}", org_bucket_name)
                 product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
+            elif product.mask and (product.mask.startswith("http://") or product.mask.startswith("https://")):
+                product.mask = f"p_{counter}_{product.name}_mask_{org_id}"
+            
             if product.greenmask and product.greenmask.startswith("data:image"):
                 processAndSaveImage(product.greenmask, f"p_{counter}_{product.name}_greenmask_{org_id}", org_bucket_name)
                 product.greenmask = f"p_{counter}_{product.name}_greenmask_{org_id}"
+            elif product.greenmask and (product.greenmask.startswith("http://") or product.greenmask.startswith("https://")):
+                product.greenmask = f"p_{counter}_{product.name}_greenmask_{org_id}"
+            
             if product.defaultProduct and product.defaultProduct.startswith("data:image"):
                 processAndSaveImage(product.defaultProduct, f"p_{counter}_{product.name}_dp_{org_id}", org_bucket_name)
+                product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
+            elif product.defaultProduct and (product.defaultProduct.startswith("http://") or product.defaultProduct.startswith("https://")):
                 product.defaultProduct = f"p_{counter}_{product.name}_dp_{org_id}"
 
             for color in product.colors:
                 if product.colors[color].asset.front and product.colors[color].asset.front.startswith("data:image"):
                     processAndSaveImage(product.colors[color].asset.front, f"pf_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
                     product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
+                elif product.colors[color].asset.front and (product.colors[color].asset.front.startswith("http://") or product.colors[color].asset.front.startswith("https://")):
+                    product.colors[color].asset.front = f"pf_{counter}_{product.name}_{color}_{org_id}"
+                
                 if product.colors[color].asset.back and product.colors[color].asset.back.startswith("data:image"):
                     processAndSaveImage(product.colors[color].asset.back, f"pb_{counter}_{product.name}_{color}_{org_id}", org_bucket_name)
+                    product.colors[color].asset.back = f"pb_{counter}_{product.name}_{color}_{org_id}"
+                elif product.colors[color].asset.back and (product.colors[color].asset.back.startswith("http://") or product.colors[color].asset.back.startswith("https://")):
                     product.colors[color].asset.back = f"pb_{counter}_{product.name}_{color}_{org_id}"
 
         # Update the organization

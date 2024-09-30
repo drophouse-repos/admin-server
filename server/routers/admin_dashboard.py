@@ -276,11 +276,24 @@ async def print_order(
                 },
             )
 
-        if not hasattr(order_info, 'greenmask'):
-            organization = await org_db_ops.get_by_id(order_info.org_id)
-            mask_data = process_mask_data(organization, False)
+        organization = await org_db_ops.get_by_id(order_info.org_id)
+        mask_data = process_mask_data(organization, False)
+
+        if not mask_data or mask_data == None:
+            mask_data = "pending"
+            for item in order_info.item:
+                if not hasattr(item, 'greenmask'):
+                    mask_data = None
+                    break
+                else:
+                    if hasattr(item, 'greenmask') and item.greenmask != 'null' and item.greenmask != '':
+                        item.greenmask = process_mask_data(item.greenmask, True)
+                    else:
+                        mask_data = None
+                        break
         else:
-            mask_data = process_mask_data(order_info.greenmask, True)
+            for item in order_info.item:
+                item.greenmask = mask_data
         
         if not mask_data or mask_data == None:
             logger.error(f"Green mask not found in request", exc_info=True)
@@ -292,7 +305,6 @@ async def print_order(
                 },
             )
 
-        # mask_image_path = "./images/masks/rh_mask.png"
         shipping_info = order_info.shipping_info
         order_data = {
             "recipient": {
@@ -385,7 +397,7 @@ async def print_order(
             )
             print('image url -> ', image_url)
             image_data = await applyMask_and_removeBackground(
-                image_url, mask_data, item.img_id
+                image_url, item.greenmask, item.img_id
             )
 
             item_data = {
@@ -508,7 +520,6 @@ async def download_student_verified_orders(
             'progress': 0,
             'total': len(request.order_ids)
         }
-        # mask_image_path = "./images/masks/elephant_mask.png"
         result = await db_ops.get_student_order(request.order_ids)
         if result:
             tasks = []
@@ -516,6 +527,7 @@ async def download_student_verified_orders(
                 if "images" in order:
                     if 'org_id' not in order:
                         logger.error(f"Organization id not found in ORDER", exc_info=True)
+                        vector_task_storage.pop(request.task_id, None)
                         raise HTTPException(
                             status_code=404,
                             detail={
@@ -524,14 +536,28 @@ async def download_student_verified_orders(
                             },
                         )
 
-                    if 'greenmask' not in order_info:
-                        organization = await org_db_ops.get_by_id(order_info['org_id'])
-                        mask_data = process_mask_data(organization, False)
+                    organization = await org_db_ops.get_by_id(order['org_id'])
+                    mask_data = process_mask_data(organization, False)
+
+                    if not mask_data or mask_data == None:
+                        mask_data = "pending"
+                        for image in order['images']:
+                            if 'greenmask' not in order['images'][image]:
+                                mask_data = None
+                                break
+                            else:
+                                if 'greenmask' in order['images'][image] and order['images'][image]['greenmask'] != 'null' and order['images'][image]['greenmask'] != '':
+                                    order['images'][image]['greenmask'] = process_mask_data(order['images'][image]['greenmask'], True)
+                                else:
+                                    mask_data = None
+                                    break
                     else:
-                        mask_data = process_mask_data(order_info['greenmask'], True)
+                        for image in order['images']:
+                            order['images'][image]['greenmask'] = mask_data
                     
                     if not mask_data or mask_data == None:
                         logger.error(f"Green mask not found in request", exc_info=True)
+                        vector_task_storage.pop(request.task_id, None)
                         raise HTTPException(
                             status_code=404,
                             detail={
@@ -541,7 +567,7 @@ async def download_student_verified_orders(
                         )
                     
                     for image in order["images"]:
-                        tasks.append(process_image(image, mask_data, order, request.mode, db_ops, request.task_id))
+                        tasks.append(process_image(image, order['images'][image]['greenmask'], order, request.mode, db_ops, request.task_id))
             
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -613,8 +639,11 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
         await websocket.close()
 
 def process_mask_data(organization, isImgId):
+    if not organization:
+        return None
+
     if not isImgId:
-        if 'greenmask' in organization:
+        if 'greenmask' in organization and organization['greenmask'] != 'null' and organization['greenmask'] != '':
             mask_data = organization['greenmask']
         else:
             return None
@@ -628,6 +657,9 @@ def process_mask_data(organization, isImgId):
         mask_data = mask_data.split(b',')[1]
     else:
         try:
+            if not mask_data or mask_data == None:
+                return None
+
             mask_data = generate_presigned_url(mask_data, "drophouse-skeleton")
             response = requests.get(mask_data)
             if response.status_code == 200:
@@ -635,7 +667,7 @@ def process_mask_data(organization, isImgId):
             else:
                 raise ValueError(f"Error downloading image. Status code: {response.status_code}")
         except Exception as e:
-            print(f"Error processing mask data: {e}")
+            logger.info(f"Error processing mask data: {e}")
             mask_data = None
 
     return mask_data

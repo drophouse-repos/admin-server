@@ -65,11 +65,24 @@ async def bulk_prepare(
                         #     },
                         # )
 
-                    if 'greenmask' not in order_info:
-                        organization = await org_db_ops.get_by_id(order_info['org_id'])
-                        mask_data = process_mask_data(organization, False)
+                    organization = await org_db_ops.get_by_id(order['org_id'])
+                    mask_data = process_mask_data(organization, False)
+
+                    if not mask_data or mask_data == None:
+                        mask_data = "pending"
+                        for image in order['images']:
+                            if 'greenmask' not in order['images'][image]:
+                                mask_data = None
+                                break
+                            else:
+                                if 'greenmask' in order['images'][image] and order['images'][image]['greenmask'] != 'null' and order['images'][image]['greenmask'] != '':
+                                    order['images'][image]['greenmask'] = process_mask_data(order['images'][image]['greenmask'], True)
+                                else:
+                                    mask_data = None
+                                    break
                     else:
-                        mask_data = process_mask_data(order_info['greenmask'], True)
+                        for image in order['images']:
+                            order['images'][image]['greenmask'] = mask_data
                     
                     if not mask_data or mask_data == None:
                         logger.error(f"Green mask not found in request", exc_info=True)
@@ -89,7 +102,7 @@ async def bulk_prepare(
                         image_path = f"{zip_folder1}/{image}.png"
                         image_data = applyMask_and_removeBackground_file(
                             order["images"][image]["img_path"],
-                            mask_data,
+                            order["images"][image]["greenmask"],
                             order["images"][image]["img_id"],
                             image_path
                         )
@@ -600,8 +613,11 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
         await websocket.close()
 
 def process_mask_data(organization, isImgId):
+    if not organization:
+        return None
+
     if not isImgId:
-        if 'greenmask' in organization:
+        if 'greenmask' in organization and organization['greenmask'] != 'null' and organization['greenmask'] != '':
             mask_data = organization['greenmask']
         else:
             return None
@@ -615,6 +631,9 @@ def process_mask_data(organization, isImgId):
         mask_data = mask_data.split(b',')[1]
     else:
         try:
+            if not mask_data or mask_data == None:
+                return None
+
             mask_data = generate_presigned_url(mask_data, "drophouse-skeleton")
             response = requests.get(mask_data)
             if response.status_code == 200:
@@ -622,7 +641,7 @@ def process_mask_data(organization, isImgId):
             else:
                 raise ValueError(f"Error downloading image. Status code: {response.status_code}")
         except Exception as e:
-            print(f"Error processing mask data: {e}")
+            logger.info(f"Error processing mask data: {e}")
             mask_data = None
 
     return mask_data
