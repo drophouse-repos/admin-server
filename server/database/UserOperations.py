@@ -68,6 +68,7 @@ class UserOperations(BaseDatabaseOperation):
                                     'img_id': '$$i.img_id',
                                     'prompt': '$$i.prompt',
                                     'price': '$$i.price',
+                                    'greenmask':'$$i.greenmask',
                                     'thumbnail': {
                                         '$cond': {
                                             'if': { '$or': [
@@ -110,6 +111,25 @@ class UserOperations(BaseDatabaseOperation):
                 print(f'Duration : {duration}')
                 return []
             
+            for order in orders:
+                if "item" in order:
+                    for item in order["item"]:
+                        img_id = item["img_id"]
+                        thumbnail_img_id = "t_" + img_id
+                        if item["thumbnail"] == "null":
+                            item["thumbnail"] = "null"
+                        else:
+                            item["thumbnail"] = generate_presigned_url(
+                                thumbnail_img_id, "thumbnails-cart"
+                            )
+                        item["img_url"] = generate_presigned_url(
+                            img_id, "browse-image-v2"
+                        )
+                        if item["toggled"] == 'true' or item['toggled'] == True or item['toggled'] == 'True':
+                            item["toggled"] = generate_presigned_url(
+                                "e_" + img_id, "browse-image-v2"
+                            )
+
             duration = datetime.now() - start
             print(f'Duration : {duration}')
             return orders
@@ -149,12 +169,16 @@ class UserOperations(BaseDatabaseOperation):
                     if fname == '' and lname == '':
                         continue
 
-                    prevent_duplicate = prevent_duplicate + 1
                     order["images"] = {}
                     if "item" in order:
                         for item in order["item"]:
+                            greenmask = None
                             img_id = item["img_id"]
-                            if "toggled" in item and item["toggled"] != False and item["toggled"] != 'FALSE' and item["toggled"] != 'NULL':
+                            prevent_duplicate = prevent_duplicate + 1
+                            if "greenmask" in item and item['greenmask'] != 'null' and  item['greenmask'] != '':
+                                greenmask = item['greenmask']
+                            
+                            if "toggled" in item and (type(item["toggled"]) == bool and item["toggled"] != False) and (type(item["toggled"]) == str and item["toggled"] != 'False' and item["toggled"] != 'FALSE' and item["toggled"] != 'NULL'):
                                 item["img_url"] = generate_presigned_url(
                                     item["toggled"], "browse-image-v2"
                                 )
@@ -189,6 +213,15 @@ class UserOperations(BaseDatabaseOperation):
                                 + "_"
                                 + str(prevent_duplicate)
                             ]["img_id"] = item["img_id"]
+                            order["images"][
+                                item["size"]
+                                + "_"
+                                + fname
+                                + "_"
+                                + lname
+                                + "_"
+                                + str(prevent_duplicate)
+                            ]["greenmask"] = greenmask
                     verfied_orders.append(order)
             return verfied_orders
         except Exception as e:

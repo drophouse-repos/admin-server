@@ -22,6 +22,7 @@ class Product(BaseModel):
     default_color: Optional[constr(min_length=1)] = Field(None, description="Product default color.")
     sizes: List[str] = Field(default_factory=list, description="Product sizes.")
     mask: Optional[str] = Field(None, description="Product mask as Base64 encoded image.")
+    greenmask: Optional[str] = Field(None, description="Product green mask as Base64 encoded image.")
     # colors: Dict[str, Optional[constr(min_length=1)]] = Field(default_factory=dict, description="Product colors.")
     # clip: Optional[str] = Field(b"data:image/png;base64", description="product Clip image as Base64 encoded image.")
     colors: Dict[str, Optional[Color]] = Field(default_factory=dict, description="Product colors.")
