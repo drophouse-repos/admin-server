@@ -34,6 +34,14 @@ class LandingPage(BaseModel):
     asset: str = Field(..., description="Front asset is required.")
     asset_back: Optional[str] = Field(None, description="Organization LandingPage asset_back.")
 
+class EnvData(BaseModel):
+    STRIPE_CHECKOUT_ENABLED: bool
+    SIDEBAR_PRODUCT_IMAGES_ENABLED: bool
+    CART_ENABLED: bool
+    AUTHTYPE_SAML: bool
+    SHOWPRICE: bool
+    SAMPLE_PRODUCT_SLIDER: bool
+
 class OrganizationModel(BaseModel):
     org_id: constr(min_length=1) = Field(..., description="Organization ID is required.")
     name: Optional[constr(min_length=1)] = Field(None, description="Organization name.")
@@ -45,3 +53,4 @@ class OrganizationModel(BaseModel):
     favicon: Optional[str] = Field(None, description="Organization favicon.")
     landingpage: List[LandingPage] = Field(..., description="List of Sample Products.")
     products: List[Product] = Field(..., description="List of products.")
+    secrets: EnvData = Field(..., description="Environment variables")
