@@ -38,7 +38,6 @@ class EnvData(BaseModel):
     STRIPE_CHECKOUT_ENABLED: bool
     SIDEBAR_PRODUCT_IMAGES_ENABLED: bool
     CART_ENABLED: bool
-    AUTHTYPE_SAML: bool
     SHOWPRICE: bool
     SAMPLE_PRODUCT_SLIDER: bool
 
