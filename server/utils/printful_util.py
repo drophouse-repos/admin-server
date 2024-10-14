@@ -93,7 +93,7 @@ async def applyMask_and_removeBackground(input_image_url, mask_data, img_id):
         cv2.imwrite(image_path, foreground_with_alpha)
 
         with Image.open(image_path) as img:
-            img.save(image_path, dpi=(200, 200))
+            img.save(image_path, dpi=(400, 400))
 
         base64_string = image_to_base64(image_path)
         os.remove(image_path)
@@ -155,7 +155,7 @@ def applyMask_and_removeBackground_file(input_image_url, mask_data, img_id, imag
         
         cv2.imwrite(image_path, foreground_with_alpha)
         with Image.open(image_path) as img:
-            img.save(image_path, dpi=(200, 200))
+            img.save(image_path, dpi=(400, 400))
 
         return image_path
     except Exception as error:
