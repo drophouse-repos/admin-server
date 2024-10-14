@@ -18,6 +18,7 @@ class Color(BaseModel):
 
 class Product(BaseModel):
     name: constr(min_length=1) = Field(..., description="Product name is required.")
+    position: constr(min_length=1) = Field(..., description="Product position is required.")
     description: Optional[constr(min_length=1)] = Field(None, description="Product description.")
     default_color: Optional[constr(min_length=1)] = Field(None, description="Product default color.")
     sizes: List[str] = Field(default_factory=list, description="Product sizes.")
