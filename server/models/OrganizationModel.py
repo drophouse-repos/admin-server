@@ -54,3 +54,4 @@ class OrganizationModel(BaseModel):
     landingpage: List[LandingPage] = Field(..., description="List of Sample Products.")
     products: List[Product] = Field(..., description="List of products.")
     secrets: EnvData = Field(..., description="Environment variables")
+    updated_at: str

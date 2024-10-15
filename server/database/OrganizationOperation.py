@@ -42,32 +42,43 @@ class OrganizationOperation(BaseDatabaseOperation):
                 org_dict = {}
                 for org in org_data:
                     if 'mask' in org and org['mask'] != None and org['mask'] != 'null' and org['mask'] != '':
+                        org['mask_id'] = org['mask']
                         org['mask'] = generate_presigned_url(org['mask'], s3_bucket)
                     if 'logo' in org and org['logo'] != None and org['logo'] != 'null' and org['logo'] != '':
+                        org['logo_id'] = org['logo']
                         org['logo'] = generate_presigned_url(org['logo'], s3_bucket)
                     if 'greenmask' in org and org['greenmask'] != None and org['greenmask'] != 'null' and org['greenmask'] != '':
+                        org['greenmask_id'] = org['greenmask']
                         org['greenmask'] = generate_presigned_url(org['greenmask'], s3_bucket)
                     if 'favicon' in org and org['favicon'] != None and org['favicon'] != 'null' and org['favicon'] != '':
+                        org['favicon_id'] = org['favicon']
                         org['favicon'] = generate_presigned_url(org['favicon'], s3_bucket)
 
                     for products in org['landingpage']:
                         if 'asset' in products and products['asset'] != None and products['asset'] != 'null' and products['asset'] != '':
+                            products['asset_id'] = products['asset']
                             products['asset'] = generate_presigned_url(products['asset'], s3_bucket)
                         if 'asset_back' in products and products['asset_back'] != None and products['asset_back'] != 'null' and products['asset_back'] != '':
+                            products['asset_back_id'] = products['asset_back']
                             products['asset_back'] = generate_presigned_url(products['asset_back'], s3_bucket)
 
                     for product in org['products']:
                         if 'mask' in product and product['mask'] != None and product['mask'] != 'null' and product['mask'] != '':
+                            product['mask_id'] = product['mask']
                             product['mask'] = generate_presigned_url(product['mask'], s3_bucket)
                         if 'greenmask' in product and product['greenmask'] != None and product['greenmask'] != 'null' and product['greenmask'] != '':
+                            product['greenmask_id'] = product['greenmask']
                             product['greenmask'] = generate_presigned_url(product['greenmask'], s3_bucket)
                         if 'defaultProduct' in product and product['defaultProduct'] != None and product['defaultProduct'] != 'null' and product['defaultProduct'] != '':
+                            product['defaultProduct_id'] = product['defaultProduct']
                             product['defaultProduct'] = generate_presigned_url(product['defaultProduct'], s3_bucket)
 
                         for color in product['colors']:
                             if product['colors'][color]['asset']['front'] != None and product['colors'][color]['asset']['front'] != 'null' and product['colors'][color]['asset']['front'] != '':
+                                product['colors'][color]['asset']['front_id'] = product['colors'][color]['asset']['front']
                                 product['colors'][color]['asset']['front'] = generate_presigned_url(product['colors'][color]['asset']['front'], s3_bucket)
                             if product['colors'][color]['asset']['back'] != None and product['colors'][color]['asset']['back'] != 'null' and product['colors'][color]['asset']['back'] != '':
+                                product['colors'][color]['asset']['back_id'] = product['colors'][color]['asset']['back']
                                 product['colors'][color]['asset']['back'] = generate_presigned_url(product['colors'][color]['asset']['back'], s3_bucket)
 
                     org_dict[org['org_id']] = org
