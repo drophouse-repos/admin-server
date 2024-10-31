@@ -15,7 +15,7 @@ def verify_id_token(
     credentials: HTTPAuthorizationCredentials = Security(HTTPBearer()),
     x_bearer: str = Header(None),
 ):
-    if credentials and x_bearer == "Alumini":
+    if credentials and x_bearer == "Alumni":
         scheme = credentials.scheme
         token = credentials.credentials
         if not scheme or scheme.lower() != "bearer":
