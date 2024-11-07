@@ -434,10 +434,16 @@ async def print_order(
                 if item.apparel == "hoodie":
                     item_data["files"][0]["position"]["area_width"] = 1024
                     item_data["files"][0]["position"]["area_height"] = 1024
-                    item_data["files"][0]["position"]["width"] = 512
-                    item_data["files"][0]["position"]["height"] = 512
-                    item_data["files"][0]["position"]["left"] = 375
-                    item_data["files"][0]["position"]["top"] = 325
+                    item_data["files"][0]["position"]["width"] = 256
+                    item_data["files"][0]["position"]["height"] = 256
+                    item_data["files"][0]["position"]["left"] = 390
+                    item_data["files"][0]["position"]["top"] = 270
+                    # item_data["files"][0]["position"]["area_width"] = 512
+                    # item_data["files"][0]["position"]["area_height"] = 512
+                    # item_data["files"][0]["position"]["width"] = 256
+                    # item_data["files"][0]["position"]["height"] = 256
+                    # item_data["files"][0]["position"]["left"] = 125
+                    # item_data["files"][0]["position"]["top"] = 125
 
                 if item.apparel == "tshirt":
                     item_data["files"][0]["position"]["width"] = 1024
