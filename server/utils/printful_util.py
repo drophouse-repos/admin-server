@@ -326,4 +326,12 @@ def products_and_variants_map():
             "white": "White",
         }
 
+    # if "hoodie_black" in product_map:
+    #     product_map["hoodie_black"]["color_map"] = {
+    #         "black": "White",
+    #         "white": "White",
+    #         "carbon": "White",
+    #         "brick": "White"
+    #     }
+
     return product_map

@@ -321,10 +321,11 @@ async def print_order(
         items = order_info.item
         for item in items:
             product = {}
+            # print(item.apparel, item.apparel + "_" + item.color, printful_mapping)
             if item.apparel in printful_mapping:
                 product = printful_mapping[item.apparel]
-            elif item.apparel + "_" + item.color in printful_mapping:
-                product = printful_mapping[item.apparel + "_" + item.color]
+            elif item.apparel + "_" + item.color.lower() in printful_mapping:
+                product = printful_mapping[item.apparel + "_" + item.color.lower()]
             else:
                 logger.error(f"Product not found in printful", exc_info=True)
                 raise HTTPException(
@@ -352,10 +353,11 @@ async def print_order(
             variant_id = ""
             color = item.color
             if size in product["variants"]:
+                # print(item.color, product["variants"][size], product['color_map'])
                 if item.color in product["variants"][size]:
-                    variant_id = product["variants"][size][item.color]
-                elif item.color in product["color_map"]:
-                    color = product["color_map"][item.color]
+                    variant_id = product["variants"][size][item.color.lower()]
+                elif item.color.lower() in product["color_map"]:
+                    color = product["color_map"][item.color.lower()]
                     if color in product["variants"][size]:
                         variant_id = product["variants"][size][color]
                 else:
