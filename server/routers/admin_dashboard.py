@@ -55,6 +55,7 @@ class DownloadRequest(BaseModel):
 
 class EmailRequest(BaseModel):
     to_mail: str
+    reason: str
     subject: str
     content: str
 
@@ -150,7 +151,7 @@ async def delete_order(
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
-        logger.error(f"Error in update_order_status: {str(e)}", exc_info=True)
+        logger.error(f"Error in delete_order: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={"message": "Internal Server Error","currentFrame": getframeinfo(currentframe()),"detail": str(traceback.format_exc())}
@@ -165,7 +166,11 @@ async def update_order_status(
     db_ops: BaseDatabaseOperation = Depends(get_db_ops(UserOperations)),
 ):
     try:
-        result = await db_ops.update(user_id, order_id, new_status)
+        if new_status == "cancelled":
+            result = await db_ops.update(user_id, order_id, new_status, email_data.reason)
+        else:
+            result = await db_ops.update(user_id, order_id, new_status)
+
         if result:
             if new_status == "cancelled":
                 email_service.send_email(
@@ -203,6 +208,7 @@ async def update_order_status(
 class OrderUpdate(BaseModel):
     email_data: EmailRequest
     user_id: str
+    reason: str
     order_id: str
     new_status: str
 
@@ -214,7 +220,7 @@ async def update_bulk_order_status(
     try:
         # Prepare a list of bulk update requests
         bulk_updates = [
-            {"user_id": update.user_id, "order_id": update.order_id, "new_status": update.new_status}
+            {"user_id": update.user_id, "order_id": update.order_id, "new_status": update.new_status, "reason": update.reason}
             for update in updates
         ]
 
