@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import Optional, List
 from pydantic import StringConstraints, BaseModel, Field
 from typing_extensions import Annotated
 from enum import Enum
@@ -46,4 +46,7 @@ class OrderItem(BaseModel):
     status: OrderStatus = Field(..., description="Order status is required.")
     timestamp: datetime.datetime = Field(
         None, alias="timestamp", description="Timestamp is required."
+    )
+    reason: Optional[str] = Field(
+        None, alias="reason", description="Order cancelled reason."
     )
