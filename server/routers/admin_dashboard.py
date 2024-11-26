@@ -283,17 +283,18 @@ async def print_order(
             )
 
         organization = await org_db_ops.get_by_id(order_info.org_id)
-        mask_data = process_mask_data(organization, False)
+        mask_data = await process_mask_data(organization, False)
 
         if not mask_data or mask_data == None:
-            mask_data = "pending"
+            mask_data = None
             for item in order_info.item:
                 if not hasattr(item, 'greenmask'):
                     mask_data = None
                     break
                 else:
                     if hasattr(item, 'greenmask') and item.greenmask != 'null' and item.greenmask != '':
-                        item.greenmask = process_mask_data(item.greenmask, True)
+                        mask_data = await process_mask_data(item.greenmask, True)
+                        item.greenmask = mask_data
                     else:
                         mask_data = None
                         break
@@ -361,7 +362,7 @@ async def print_order(
             if size in product["variants"]:
                 # print(item.color, product["variants"][size], product['color_map'])
                 if item.color in product["variants"][size]:
-                    variant_id = product["variants"][size][item.color.lower()]
+                    variant_id = product["variants"][size][item.color]
                 elif item.color.lower() in product["color_map"]:
                     color = product["color_map"][item.color.lower()]
                     if color in product["variants"][size]:
@@ -551,17 +552,18 @@ async def download_student_verified_orders(
                         )
 
                     organization = await org_db_ops.get_by_id(order['org_id'])
-                    mask_data = process_mask_data(organization, False)
+                    mask_data = await process_mask_data(organization, False)
 
                     if not mask_data or mask_data == None:
-                        mask_data = "pending"
+                        mask_data = None
                         for image in order['images']:
                             if 'greenmask' not in order['images'][image]:
                                 mask_data = None
                                 break
                             else:
                                 if 'greenmask' in order['images'][image] and order['images'][image]['greenmask'] != 'null' and order['images'][image]['greenmask'] != '':
-                                    order['images'][image]['greenmask'] = process_mask_data(order['images'][image]['greenmask'], True)
+                                    mask_data = await process_mask_data(order['images'][image]['greenmask'], True)
+                                    order['images'][image]['greenmask'] = mask_data
                                 else:
                                     mask_data = None
                                     break
@@ -652,7 +654,7 @@ async def websocket_progress(websocket: WebSocket, task_id: str):
     finally:
         await websocket.close()
 
-def process_mask_data(organization, isImgId):
+async def process_mask_data(organization, isImgId):
     if not organization:
         return None
 
